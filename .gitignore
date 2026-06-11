@@ -1,0 +1,16 @@
+# WiFi認証情報など機密ファイル（絶対にコミットしない）
+arduino_secrets.h
+**/arduino_secrets.h
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# ビルド成果物
+*.hex
+*.bin
+*.elf
+build/

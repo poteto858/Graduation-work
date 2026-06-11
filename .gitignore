@@ -2,6 +2,10 @@
 arduino_secrets.h
 **/arduino_secrets.h
 
+# 個人用の解説メモ（コミットしない）
+解説_*.md
+**/解説_*.md
+
 # OS / エディタ
 .DS_Store
 Thumbs.db

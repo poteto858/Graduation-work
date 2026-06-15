@@ -17,11 +17,47 @@
 */
 
 #include <WiFiS3.h>
+#include <Adafruit_NeoPixel.h>
 #include "arduino_secrets.h"
 
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 WiFiServer server(80);
+
+// ===== ハードウェア =====
+// ジョイスティック: VRx->A0  VRy->A1  SW->D2(INPUT_PULLUP)  VCC->5V  GND->GND
+const int PIN_VRX = A0;
+const int PIN_VRY = A1;
+const int PIN_SW  = 2;
+// パッシブブザー: 信号->D9, もう片足->ポテンショメータ(中央)->外側->GND（直列で音量調整）
+const int PIN_BUZZ = 9;
+// WS2812 RGBテープ: DIN->D6, 5V->5V, GND->GND
+const int PIN_NEO = 6;
+const int NUM_LED = 8;
+Adafruit_NeoPixel strip(NUM_LED, PIN_NEO, NEO_GRB + NEO_KHZ800);
+unsigned long ledOffAt = 0;   // LEDを消す時刻(非ブロッキング)
+
+// LEDを指定色で光らせ、一定時間後に消す予約
+void ledFlash(uint8_t r, uint8_t g, uint8_t b, int ms){
+  for(int i=0;i<NUM_LED;i++) strip.setPixelColor(i, strip.Color(r,g,b));
+  strip.show();
+  ledOffAt = millis() + ms;
+}
+// 効果音＋LED（ブラウザの /fx?s=... から呼ばれる）
+void playFx(const String& s){
+  if(s=="coin"){      tone(PIN_BUZZ,1320,70);  ledFlash(255,200,0,180); }
+  else if(s=="hit"){  tone(PIN_BUZZ,160,110);  ledFlash(255,40,40,200); }
+  else if(s=="heal"){ tone(PIN_BUZZ,880,90);   ledFlash(40,255,90,200); }
+  else if(s=="enc"){  tone(PIN_BUZZ,300,120);  ledFlash(160,80,255,200); }
+  else if(s=="win"){  tone(PIN_BUZZ,784,120);  ledFlash(80,160,255,250); }
+  else if(s=="level"){            // レベルアップ：上昇アルペジオ＋金色
+    tone(PIN_BUZZ,523,90); delay(100);
+    tone(PIN_BUZZ,659,90); delay(100);
+    tone(PIN_BUZZ,784,90); delay(100);
+    tone(PIN_BUZZ,1047,160);
+    ledFlash(255,220,0,500);
+  }
+}
 
 const char page[] = R"rawliteral(
 <!DOCTYPE html>
@@ -382,7 +418,7 @@ function startBattle(){
   const e=pickEnemy();
   battle={ enemy:{...e, hp:e.maxhp}, state:"msg", msg:[], msgIdx:0, shown:0,
            after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null };
-  mode="battle";
+  mode="battle"; fx("enc");
   queueMsg([e.name+"が あらわれた！"], enterCommand);
 }
 function queueMsg(lines, after){
@@ -407,7 +443,7 @@ function confirmCommand(){
 function afterPlayerAction(){ if(battle.enemy.hp<=0) winBattle(); else enemyTurn(); }
 function playerAttack(){
   const d=calcDmg(atkTotal(), battle.enemy.def);
-  battle.enemy.hp-=d; battle.shake=12;
+  battle.enemy.hp-=d; battle.shake=12; fx("hit");
   queueMsg(["勇者の こうげき！", battle.enemy.name+"に "+d+"の ダメージ！"], afterPlayerAction);
 }
 function confirmSpell(){
@@ -417,16 +453,16 @@ function confirmSpell(){
   stats.mp-=s.mp;
   if(s.name==="かえん"){
     const d=calcDmg(atkTotal()+8+stats.lv*2, battle.enemy.def);
-    battle.enemy.hp-=d; battle.flash=10;
+    battle.enemy.hp-=d; battle.flash=10; fx("hit");
     queueMsg(["勇者は かえんを となえた！", battle.enemy.name+"に "+d+"の ダメージ！"], afterPlayerAction);
   }else{ // いやし
-    const h=18+Math.floor(Math.random()*8); stats.hp=Math.min(stats.maxhp, stats.hp+h);
+    const h=18+Math.floor(Math.random()*8); stats.hp=Math.min(stats.maxhp, stats.hp+h); fx("heal");
     queueMsg(["勇者は いやしを となえた！","HPが "+h+" かいふくした！"], enemyTurn);
   }
 }
 function useHerb(){
   if(stats.herb<=0){ queueMsg(["やくそうが ない！"], enterCommand); return; }
-  stats.herb--; const h=20+Math.floor(Math.random()*8); stats.hp=Math.min(stats.maxhp, stats.hp+h);
+  stats.herb--; const h=20+Math.floor(Math.random()*8); stats.hp=Math.min(stats.maxhp, stats.hp+h); fx("heal");
   queueMsg(["やくそうを つかった！","HPが "+h+" かいふくした！"], enemyTurn);
 }
 function tryFlee(){
@@ -435,7 +471,7 @@ function tryFlee(){
 }
 function enemyTurn(){
   const d=calcDmg(battle.enemy.atk, defTotal());
-  stats.hp-=d; battle.shakeP=12;
+  stats.hp-=d; battle.shakeP=12; fx("hit");
   queueMsg([battle.enemy.name+"の こうげき！","勇者は "+d+"の ダメージ！"],
     ()=>{ if(stats.hp<=0) loseBattle(); else enterCommand(); });
 }
@@ -444,13 +480,13 @@ function gainExp(){
   while(stats.exp>=needExp(stats.lv)){
     stats.exp-=needExp(stats.lv); stats.lv++;
     stats.maxhp+=6; stats.maxmp+=3; stats.atk+=2; stats.def+=1;
-    stats.hp=stats.maxhp; stats.mp=stats.maxmp;
+    stats.hp=stats.maxhp; stats.mp=stats.maxmp; fx("level");
     msgs.push("レベルが あがった！　Lv"+stats.lv+"！");
   }
   return msgs;
 }
 function winBattle(){
-  const e=battle.enemy;
+  const e=battle.enemy; fx("win");
   stats.exp+=e.exp; stats.gold+=e.gold;
   const lines=[e.name+"を たおした！","けいけんち "+e.exp+"を かくとく！", e.gold+"ゴールド てにいれた！"];
   lines.push(...gainExp());
@@ -622,6 +658,45 @@ canvas.addEventListener("pointerdown",(e)=>{
 canvas.addEventListener("pointerup",()=>{ tapDir=null; });
 canvas.addEventListener("pointerleave",()=>{ tapDir=null; });
 
+// ====== ハードウェア効果音（Arduinoのブザー＋WS2812 LED） ======
+function fx(s){ try{ fetch("/fx?s="+s,{cache:"no-store"}); }catch(e){} }
+
+// ====== ジョイスティック（/state をポーリング） ======
+let joyState={x:512,y:512,b:0}, joyNav=true, joyBtn=true;
+async function pollJoy(){
+  try{ const r=await fetch("/state",{cache:"no-store"}); if(!r.ok) return; applyJoy(await r.json()); }catch(e){}
+}
+function applyJoy(j){
+  joyState=j;
+  if(j.x===0&&j.y===0) return;                 // 未接続(値0)は無視
+  const left=j.x<350,right=j.x>700,up=j.y<350,down=j.y>700, btn=j.b===1;
+  if(mode!=="field"){                          // メニュー類：傾けたエッジで1回だけ
+    if((up||down||left||right)&&joyNav){ joyNav=false; joyNavDo(up,down,left,right); }
+    if(!up&&!down&&!left&&!right) joyNav=true;
+  }
+  if(btn&&joyBtn){ joyBtn=false; joyButton(); } // ボタンは押した瞬間だけ
+  if(!btn) joyBtn=true;
+}
+function joyNavDo(up,down,left,right){
+  if(mode==="battle"){ const b=battle; if(!b)return;
+    if(b.state==="command"){ if(up)b.cmd=(b.cmd+3)%4; if(down)b.cmd=(b.cmd+1)%4; }
+    else if(b.state==="spell"){ if(up)b.spell=(b.spell+2)%3; if(down)b.spell=(b.spell+1)%3; }
+  }else if(mode==="service"){ const s=service; if(!s||s.phase!=="menu")return; const n=s.labels.length;
+    if(up)s.cursor=Math.max(0,s.cursor-2); if(down)s.cursor=Math.min(n-1,s.cursor+2);
+    if(left)s.cursor=Math.max(0,s.cursor-1); if(right)s.cursor=Math.min(n-1,s.cursor+1);
+  }
+}
+function joyButton(){
+  if(mode==="field"){ const n=npcInFront(); if(n) talkTo(n); }
+  else if(mode==="talk"){ advanceDialog(); }
+  else if(mode==="status"){ mode="field"; }
+  else if(mode==="battle"){ const b=battle; if(!b)return;
+    if(b.state==="msg") advanceBattleMsg(); else if(b.state==="command") confirmCommand(); else if(b.state==="spell") confirmSpell(); }
+  else if(mode==="service"){ const s=service; if(!s)return;
+    if(s.phase==="msg") advanceSvc(); else confirmSvc(); }
+}
+setInterval(pollJoy,120);
+
 // ====== 更新 ======
 function update(){
   if(encCooldown>0) encCooldown--;
@@ -632,6 +707,11 @@ function update(){
     if(keys["a"])dx-=sp; if(keys["d"])dx+=sp;
     if(tapDir==="w")dy-=sp; if(tapDir==="s")dy+=sp;
     if(tapDir==="a")dx-=sp; if(tapDir==="d")dx+=sp;
+    const j=joyState;                          // ジョイスティック
+    if(!(j.x===0&&j.y===0)){
+      if(j.x<350)dx-=sp; if(j.x>700)dx+=sp;
+      if(j.y<350)dy-=sp; if(j.y>700)dy+=sp;
+    }
     if(dx)move(dx,0); if(dy)move(0,dy);
     updateCamera();
     // 立っているタイル
@@ -980,6 +1060,9 @@ buildSprites(); loadGame(); loadMap(respawn.map, respawn.tx, respawn.ty); loop()
 
 void setup(){
   Serial.begin(9600);
+  pinMode(PIN_SW, INPUT_PULLUP);
+  pinMode(PIN_BUZZ, OUTPUT);
+  strip.begin(); strip.show();   // 全消灯
   while(WiFi.begin(ssid,pass)!=WL_CONNECTED){ delay(2000); Serial.println("Connecting..."); }
   Serial.println("Connected");
   while(WiFi.localIP()==IPAddress(0,0,0,0)){ delay(500); Serial.println("Waiting for IP..."); }
@@ -987,20 +1070,57 @@ void setup(){
   server.begin();
 }
 
+// 小さなレスポンスを返して接続を閉じる
+void sendShort(WiFiClient& client, const String& body){
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/plain");
+  client.println("Connection: close");
+  client.println();
+  client.print(body);
+  client.stop();
+}
+
 void loop(){
+  // LEDの自動消灯（非ブロッキング）
+  if(ledOffAt && millis()>ledOffAt){ strip.clear(); strip.show(); ledOffAt=0; }
+
   WiFiClient client=server.available();
   if(client){
+    // リクエスト1行目だけ読んでパスを取得
+    String reqLine = client.readStringUntil('\n');
+    // 残りのヘッダを読み飛ばす
     while(client.connected()){
-      if(client.available()){
-        String line=client.readStringUntil('\n');
-        if(line=="\r") break;
-      }
+      String h=client.readStringUntil('\n');
+      if(h=="\r"||h.length()==0) break;
     }
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: text/html; charset=UTF-8");
-    client.println("Connection: close");
-    client.println();
-    client.print(page);
-    client.stop();
+    // パス抽出: "GET /xxx HTTP/1.1"
+    int sp1=reqLine.indexOf(' '), sp2=reqLine.indexOf(' ', sp1+1);
+    String path = (sp1>=0&&sp2>sp1) ? reqLine.substring(sp1+1, sp2) : "/";
+
+    if(path.startsWith("/state")){
+      int vx=analogRead(PIN_VRX), vy=analogRead(PIN_VRY);
+      int b=(digitalRead(PIN_SW)==LOW)?1:0;
+      String json="{\"x\":"+String(vx)+",\"y\":"+String(vy)+",\"b\":"+String(b)+"}";
+      client.println("HTTP/1.1 200 OK");
+      client.println("Content-Type: application/json");
+      client.println("Connection: close");
+      client.println();
+      client.print(json);
+      client.stop();
+    }
+    else if(path.startsWith("/fx")){
+      int q=path.indexOf("s=");
+      String s = q>=0 ? path.substring(q+2) : "";
+      playFx(s);
+      sendShort(client, "ok");
+    }
+    else{
+      client.println("HTTP/1.1 200 OK");
+      client.println("Content-Type: text/html; charset=UTF-8");
+      client.println("Connection: close");
+      client.println();
+      client.print(page);
+      client.stop();
+    }
   }
 }

@@ -43,19 +43,27 @@ void ledFlash(uint8_t r, uint8_t g, uint8_t b, int ms){
   strip.show();
   ledOffAt = millis() + ms;
 }
-// 効果音＋LED（ブラウザの /fx?s=... から呼ばれる）
+// 非ブロッキングのメロディ再生（delayを使わずloopで進める）
+int seqF[8]; int seqT[8]; int seqN=0, seqI=0; unsigned long seqStart=0;
+void playSeq(const int* f, const int* t, int n){
+  seqN=n; seqI=0; seqStart=millis();
+  for(int i=0;i<n && i<8;i++){ seqF[i]=f[i]; seqT[i]=t[i]; }
+}
+void serviceSeq(){
+  if(seqI<seqN && millis()-seqStart >= (unsigned long)seqT[seqI]){
+    tone(PIN_BUZZ, seqF[seqI], 110); seqI++;
+  }
+}
+// 効果音＋LED（ブラウザの /fx?s=... から呼ばれる）。delayは使わない＝サーバーを止めない
 void playFx(const String& s){
   if(s=="coin"){      tone(PIN_BUZZ,1320,70);  ledFlash(255,200,0,180); }
   else if(s=="hit"){  tone(PIN_BUZZ,160,110);  ledFlash(255,40,40,200); }
   else if(s=="heal"){ tone(PIN_BUZZ,880,90);   ledFlash(40,255,90,200); }
   else if(s=="enc"){  tone(PIN_BUZZ,300,120);  ledFlash(160,80,255,200); }
   else if(s=="win"){  tone(PIN_BUZZ,784,120);  ledFlash(80,160,255,250); }
-  else if(s=="level"){            // レベルアップ：上昇アルペジオ＋金色
-    tone(PIN_BUZZ,523,90); delay(100);
-    tone(PIN_BUZZ,659,90); delay(100);
-    tone(PIN_BUZZ,784,90); delay(100);
-    tone(PIN_BUZZ,1047,160);
-    ledFlash(255,220,0,500);
+  else if(s=="level"){
+    static const int f[]={523,659,784,1047}; static const int t[]={0,110,220,330};
+    playSeq(f,t,4); ledFlash(255,220,0,500);
   }
 }
 
@@ -75,9 +83,18 @@ h2{letter-spacing:6px;margin:4px 0 12px;font-weight:700;color:#ffe9a8;text-shado
 canvas{display:block;border-radius:4px;background:#2a3a2a;touch-action:none;max-width:94vw;
        box-shadow:inset 0 0 0 2px #0a0a12;}
 #hint{color:#6f6890;font-size:13px;margin-top:12px;}
+#loading{position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#243a5e,#0c1424 75%);}
+#loading .t{color:#ffe9a8;font-size:30px;letter-spacing:8px;font-weight:700;text-shadow:0 0 12px #b58a2a;}
+#loading .s{color:#9fb0d0;font-size:16px;margin-top:18px;animation:blink 1s infinite;}
+#loading .bar{width:200px;height:8px;margin-top:18px;border-radius:4px;background:#1a2540;overflow:hidden;}
+#loading .bar>i{display:block;height:100%;width:40%;border-radius:4px;background:#ffd23f;animation:slide 1.1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes slide{0%{margin-left:-40%}100%{margin-left:100%}}
 </style>
 </head>
 <body>
+<div id="loading"><div class="t">⚔ Q U E S T ⚔</div><div class="bar"><i></i></div><div class="s">よみこみちゅう…</div></div>
 <h2>― Q U E S T ―</h2>
 <div class="frame"><canvas id="game" width="800" height="800"></canvas></div>
 <div id="hint">WASD / 矢印で移動　Space / Enter で話す　スマホはタップ</div>
@@ -155,6 +172,16 @@ function makeGrass(seed){
   }
   return c;
 }
+function makeStone(seed){   // 洞窟の床（暗い石畳）
+  const c=document.createElement('canvas'); c.width=TILE; c.height=TILE; const g=c.getContext('2d');
+  g.fillStyle="#3a3a46"; g.fillRect(0,0,TILE,TILE);
+  for(let i=0;i<22;i++){
+    const cx=(i*97+seed*4137)%CELL, cy=(i*53+seed*911)%CELL;
+    g.fillStyle=(i%3===0)?"#46465a":"#2e2e38";
+    g.fillRect(cx*SCALE,cy*SCALE,SCALE,SCALE);
+  }
+  return c;
+}
 function makeWater(frame){
   const c=document.createElement('canvas'); c.width=TILE; c.height=TILE; const g=c.getContext('2d');
   g.fillStyle="#2f6fd8"; g.fillRect(0,0,TILE,TILE);   // 明るい水
@@ -178,7 +205,9 @@ function buildSprites(){
   SPR.house=makeSprite(HOUSE,HOUSE_PAL);
   SPR.dead=makeSprite(DEADTREE,DEAD_PAL);
   SPR.grass=[makeGrass(0),makeGrass(1)];
+  SPR.stone=[makeStone(0),makeStone(1)];
   SPR.water=[makeWater(0),makeWater(1)];
+  SPR.mageField=makeSprite(VILLAGER, npcPal("#8a4fc0"), CHAR);  // 救出シーン用の魔法使い
   SPR.slime=makeSprite(SLIME,SLIME_PAL,CHAR);
   SPR.bat=makeSprite(BAT,BAT_PAL,CHAR);
   SPR.bone=makeSprite(BONE,BONE_PAL,CHAR);
@@ -187,10 +216,10 @@ function buildSprites(){
 // ====== ゲームデータ（後でAPI配信へ差し替えやすいよう分離） ======
 const GAME_DATA={
   // 記号: . 草地 / T 木 / W 水 / R 岩 / H 家 / P 開始位置
-  // フィールド（魔物が出る）。G=街の入口
+  // フィールド（魔物が出る）。G=街の入口 / C=東の洞窟の入口
   field:{
     safe:false,
-    exit:{ to:"town", tx:9, ty:11 },
+    exits:{ "G":{to:"town", tx:9, ty:11}, "C":{to:"cave", tx:5, ty:11} },
     map:[
       "TTTTTTTTTTTTTTTTTTTT",
       "T..................T",
@@ -201,7 +230,7 @@ const GAME_DATA={
       "T..................T",
       "T...........TT.....T",
       "T...........TT.....T",
-      "T...........TT.....T",
+      "T...........TT..C..T",
       "T..RR..............T",
       "T..RR........WWWW..T",
       "T............WWWW..T",
@@ -214,10 +243,31 @@ const GAME_DATA={
       "TTTTTTTTTTTTTTTTTTTT"],
     npcs:[]
   },
+  // 東の洞窟（暗い・魔物が出る）。E=魔法使い救出イベント / G=フィールドへ戻る
+  cave:{
+    safe:false, dark:true,
+    exits:{ "G":{to:"field", tx:16, ty:10} },
+    map:[
+      "RRRRRRRRRRRRRRRR",
+      "R..............R",
+      "R..RR....RR....R",
+      "R..............R",
+      "R....RR....RR..R",
+      "R..............R",
+      "R..RR....E.....R",
+      "R..............R",
+      "R....RR....RR..R",
+      "R..............R",
+      "R..RR....RR....R",
+      "R..............R",
+      "RRRRRGRRRRRRRRRR",
+      "RRRRRRRRRRRRRRRR"],
+    npcs:[]
+  },
   // 街（魔物が出ない・安全）。G=フィールドへの出口。建物は buildings で配置
   town:{
     safe:true,
-    exit:{ to:"field", tx:10, ty:6 },
+    exits:{ "G":{to:"field", tx:10, ty:6} },
     map:[
       "TTTTTTTTTTTTTTTTTT",
       "T................T",
@@ -256,9 +306,9 @@ const GAME_DATA={
   },
   // 敵（戦闘）。spr はスプライトキー
   enemies:[
-    { name:"ブルン",     spr:"slime", maxhp:8,  atk:7,  def:3, exp:3,  gold:2 },
-    { name:"ヤミバット", spr:"bat",   maxhp:13, atk:10, def:4, exp:6,  gold:5 },
-    { name:"ホネナイト", spr:"bone",  maxhp:20, atk:15, def:7, exp:13, gold:11 }
+    { name:"ブルン",     spr:"slime", maxhp:8,  atk:7,  def:3, exp:3,  gold:2,  weak:["火"],        resist:[] },
+    { name:"ヤミバット", spr:"bat",   maxhp:13, atk:10, def:4, exp:6,  gold:5,  weak:["氷"],        resist:["火"] },
+    { name:"ホネナイト", spr:"bone",  maxhp:20, atk:15, def:7, exp:13, gold:11, weak:["火"],        resist:["氷"] }
   ]
 };
 
@@ -293,20 +343,64 @@ let respawn={ map:"town", tx:9, ty:11 };   // 教会で更新するリスポー�
 // 会話状態
 let dialog={active:false, lines:[], idx:0, name:"", shown:0, t:0};
 
-// プレイヤー能力値・装備
-let stats={ lv:1, hp:22, maxhp:22, mp:10, maxmp:10, atk:12, def:7, exp:0, gold:0,
-            herb:3, elixir:0, weapon:null, armor:null };
-function atkTotal(){ return stats.atk + (stats.weapon? stats.weapon.atk:0); }
-function defTotal(){ return stats.def + (stats.armor? stats.armor.def:0); }
+// パーティ（party[0]=勇者）。stats は勇者の別名（既存コード互換）。
+// gold/herb/elixir/weapon/armor はパーティ共通として勇者に持たせる。
+// 呪文/特技フォーマット: {name, mp, kind, power, mult, elem}
+//   kind: "mag"(攻撃魔法) / "phys"(物理特技) / "heal" / "buffAtk" / "buffDef"
+//   elem: "火" / "氷" / "雷" / "無"
+let party=[{ name:"勇者", role:"hero", color:"#2e57c8", lv:1, hp:22, maxhp:22, mp:10, maxmp:10,
+             atk:12, def:7, exp:0, down:false, weapon:null, armor:null,
+             skills:[{name:"なぎはらい",mp:0,kind:"phys",mult:1.3,elem:"無"}],
+             spells:[{name:"かえん",mp:3,kind:"mag",power:12,elem:"火"},{name:"いやし",mp:4,kind:"heal",power:20}],
+             gold:0, herb:3, elixir:0 }];
+let stats=party[0];
+function atkOf(m){ let a=m.atk+(m.weapon?m.weapon.atk:0); if(m.buffAtkT>0)a=Math.floor(a*1.4); return a; }
+function defOf(m){ let d=m.def+(m.armor?m.armor.def:0); if(m.buffDefT>0)d=Math.floor(d*1.5); return d; }
+function atkTotal(){ return atkOf(stats); }
+function defTotal(){ return defOf(stats); }
+function aliveMembers(){ return party.filter(m=>!m.down); }
+function recruit(m){ party.push(m); }
+// 属性倍率（弱点1.5倍 / 耐性0.5倍）
+function elemMult(elem,e){
+  if(!elem||elem==="無") return 1;
+  if(e.weak && e.weak.indexOf(elem)>=0) return 1.5;
+  if(e.resist && e.resist.indexOf(elem)>=0) return 0.5;
+  return 1;
+}
+
+// 仲間テンプレート
+function makeMage(){   // 魔法使い：攻撃魔法（火・氷）
+  return { name:"マリン", role:"mage", color:"#8a4fc0", lv:3, hp:18, maxhp:18, mp:24, maxmp:24,
+           atk:8, def:5, exp:0, down:false, weapon:null, armor:null, skills:[],
+           spells:[{name:"かえん",mp:4,kind:"mag",power:18,elem:"火"},
+                   {name:"こおり",mp:5,kind:"mag",power:20,elem:"氷"},
+                   {name:"いやし",mp:5,kind:"heal",power:18}] };
+}
+function makeWarrior(){ // 戦士：物理特技
+  return { name:"ガルド", role:"warrior", color:"#a05a2a", lv:3, hp:30, maxhp:30, mp:4, maxmp:4,
+           atk:16, def:9, exp:0, down:false, weapon:null, armor:null, spells:[],
+           skills:[{name:"おおぎり",mp:0,kind:"phys",mult:1.8,elem:"無"},
+                   {name:"みだれうち",mp:0,kind:"phys",mult:1.2,elem:"無"}] };
+}
+function makePriest(){  // 神父：回復・補助
+  return { name:"セラ", role:"priest", color:"#c8b86a", lv:3, hp:22, maxhp:22, mp:22, maxmp:22,
+           atk:9, def:7, exp:0, down:false, weapon:null, armor:null, skills:[],
+           spells:[{name:"いやし",mp:4,kind:"heal",power:24},
+                   {name:"まもりのうた",mp:5,kind:"buffDef"},
+                   {name:"ちからのうた",mp:5,kind:"buffAtk"}] };
+}
 
 // 戦闘状態
 let battle=null;
 let encCooldown=0;
-const BATTLE_CMDS=["たたかう","じゅもん","どうぐ","にげる"];
+const BATTLE_CMDS=["たたかう","とくぎ","じゅもん","どうぐ","にげる"];
 const SPELLS=[{name:"かえん",mp:3},{name:"いやし",mp:4},{name:"もどる",mp:0}];
 
 // 施設（宿屋/武器屋/道具屋/教会）
 let service=null;
+
+// ストーリーフラグ（イベント1回判定など）
+let flags={ mageRescued:false };
 
 let keys={};
 
@@ -398,15 +492,23 @@ function npcInFront(){
 
 function talkTo(n){
   dialog.active=true; dialog.lines=n.lines; dialog.idx=0;
-  dialog.name=n.name; dialog.shown=0; dialog.t=0;
+  dialog.name=n.name; dialog.shown=0; dialog.t=0; dialog.after=null;
+  mode="talk";
+}
+// イベント用：NPCなしのセリフ＋終了後コールバック
+function showScene(lines, after, name){
+  dialog.active=true; dialog.lines=lines; dialog.idx=0;
+  dialog.name=name||""; dialog.shown=0; dialog.t=0; dialog.after=after||null;
   mode="talk";
 }
 function advanceDialog(){
   const full=dialog.lines[dialog.idx];
   if(dialog.shown<full.length){ dialog.shown=full.length; return; } // 一気に表示
   dialog.idx++;
-  if(dialog.idx>=dialog.lines.length){ dialog.active=false; mode="field"; }
-  else { dialog.shown=0; dialog.t=0; }
+  if(dialog.idx>=dialog.lines.length){
+    dialog.active=false; mode="field";
+    const cb=dialog.after; dialog.after=null; if(cb) cb();
+  } else { dialog.shown=0; dialog.t=0; }
 }
 
 // ====== 戦闘 ======
@@ -414,12 +516,13 @@ function calcDmg(atk,def){ const base=atk-def/2; return Math.max(1, Math.floor(b
 function needExp(lv){ return lv*lv*4 + lv*6; }
 function pickEnemy(){ const r=Math.random(); const i=r<0.6?0:r<0.9?1:2; return GAME_DATA.enemies[i]; }
 
-function startBattle(){
-  const e=pickEnemy();
+function startBattle(forced, onWin){
+  const e=forced || pickEnemy();
   battle={ enemy:{...e, hp:e.maxhp}, state:"msg", msg:[], msgIdx:0, shown:0,
-           after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null };
+           after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null, onWin:onWin||null,
+           order:[], actorIdx:0, actor:null };
   mode="battle"; fx("enc");
-  queueMsg([e.name+"が あらわれた！"], enterCommand);
+  queueMsg([e.name+"が あらわれた！"], startRound);
 }
 function queueMsg(lines, after){
   battle.msg=Array.isArray(lines)?lines:[lines];
@@ -432,74 +535,143 @@ function advanceBattleMsg(){
   if(b.msgIdx>=b.msg.length){ const cb=b.after; b.after=null; if(cb)cb(); }
   else b.shown=0;
 }
+// 1ラウンド：生存メンバー全員のコマンドを順に選ぶ → 敵のターン
+function startRound(){
+  for(const m of party){ if(m.buffAtkT>0)m.buffAtkT--; if(m.buffDefT>0)m.buffDefT--; }
+  battle.order=aliveMembers(); battle.actorIdx=0; nextActorCmd();
+}
+function nextActorCmd(){
+  if(battle.enemy.hp<=0){ winBattle(); return; }
+  if(battle.actorIdx>=battle.order.length){ enemyTurn(); return; }
+  battle.actor=battle.order[battle.actorIdx];
+  if(battle.actor.down){ battle.actorIdx++; nextActorCmd(); return; }
+  enterCommand();
+}
 function enterCommand(){ battle.state="command"; battle.cmd=0; }
+function advanceActor(){ battle.actorIdx++; nextActorCmd(); }
+function afterActorAction(){ if(battle.enemy.hp<=0){ winBattle(); return; } advanceActor(); }
 function confirmCommand(){
-  const b=battle;
-  if(b.cmd===0) playerAttack();
-  else if(b.cmd===1){ b.state="spell"; b.spell=0; }
-  else if(b.cmd===2) useHerb();
+  const b=battle, m=b.actor;
+  if(b.cmd===0) actorAttack();
+  else if(b.cmd===1){                                    // とくぎ
+    if((m.skills||[]).length===0){ queueMsg(["とくぎを つかえない！"], enterCommand); return; }
+    b.state="skill"; b.spell=0;
+  }
+  else if(b.cmd===2){                                    // じゅもん
+    if((m.spells||[]).length===0){ queueMsg(["じゅもんを つかえない！"], enterCommand); return; }
+    b.state="spell"; b.spell=0;
+  }
+  else if(b.cmd===3) actorItem();
   else tryFlee();
 }
-function afterPlayerAction(){ if(battle.enemy.hp<=0) winBattle(); else enemyTurn(); }
-function playerAttack(){
-  const d=calcDmg(atkTotal(), battle.enemy.def);
+function actorAttack(){
+  const m=battle.actor, d=calcDmg(atkOf(m), battle.enemy.def);
   battle.enemy.hp-=d; battle.shake=12; fx("hit");
-  queueMsg(["勇者の こうげき！", battle.enemy.name+"に "+d+"の ダメージ！"], afterPlayerAction);
+  queueMsg([m.name+"の こうげき！", battle.enemy.name+"に "+d+"の ダメージ！"], afterActorAction);
 }
-function confirmSpell(){
-  const b=battle, s=SPELLS[b.spell];
-  if(s.name==="もどる"){ enterCommand(); return; }
-  if(stats.mp<s.mp){ queueMsg(["MPが たりない！"], enterCommand); return; }
-  stats.mp-=s.mp;
-  if(s.name==="かえん"){
-    const d=calcDmg(atkTotal()+8+stats.lv*2, battle.enemy.def);
-    battle.enemy.hp-=d; battle.flash=10; fx("hit");
-    queueMsg(["勇者は かえんを となえた！", battle.enemy.name+"に "+d+"の ダメージ！"], afterPlayerAction);
-  }else{ // いやし
-    const h=18+Math.floor(Math.random()*8); stats.hp=Math.min(stats.maxhp, stats.hp+h); fx("heal");
-    queueMsg(["勇者は いやしを となえた！","HPが "+h+" かいふくした！"], enemyTurn);
+// 呪文・特技の共通実行
+function castAction(m,a){
+  const b=battle, e=b.enemy;
+  if(a.mp>0) m.mp-=a.mp;
+  if(a.kind==="phys"){           // 物理特技：攻撃力ベース
+    const d=Math.max(1, Math.floor(calcDmg(Math.floor(atkOf(m)*a.mult), e.def)*elemMult(a.elem,e)));
+    e.hp-=d; b.shake=12; fx("hit");
+    queueMsg([m.name+"の "+a.name+"！", e.name+"に "+d+"の ダメージ！"], afterActorAction);
+  }else if(a.kind==="mag"){      // 攻撃魔法：威力＋レベル、属性倍率
+    const wk=elemMult(a.elem,e);
+    const d=Math.max(1, Math.floor((a.power+m.lv*2)*wk*(0.85+Math.random()*0.3)));
+    e.hp-=d; b.flash=10; fx("hit");
+    const tag = wk>1?" よわてん！" : (wk<1?" きいていない…":"");
+    queueMsg([m.name+"は "+a.name+"を となえた！", e.name+"に "+d+"の ダメージ！"+tag], afterActorAction);
+  }else if(a.kind==="heal"){     // 回復（自分）
+    const h=a.power+Math.floor(Math.random()*8); m.hp=Math.min(m.maxhp,m.hp+h); fx("heal");
+    queueMsg([m.name+"は "+a.name+"を となえた！", m.name+"の HPが "+h+" かいふく！"], afterActorAction);
+  }else if(a.kind==="buffAtk"){  // 味方全体の攻撃力アップ
+    for(const mm of aliveMembers()) mm.buffAtkT=3; fx("heal");
+    queueMsg([m.name+"は "+a.name+"を となえた！","みかた ぜんいんの こうげきりょくが あがった！"], afterActorAction);
+  }else if(a.kind==="buffDef"){  // 味方全体の守備力アップ
+    for(const mm of aliveMembers()) mm.buffDefT=3; fx("heal");
+    queueMsg([m.name+"は "+a.name+"を となえた！","みかた ぜんいんの しゅびりょくが あがった！"], afterActorAction);
   }
 }
-function useHerb(){
+function confirmSpell(){
+  const b=battle, m=b.actor, list=m.spells||[];
+  if(b.spell>=list.length){ enterCommand(); return; }   // もどる
+  const s=list[b.spell];
+  if(m.mp<s.mp){ queueMsg(["MPが たりない！"], enterCommand); return; }
+  castAction(m,s);
+}
+function confirmSkill(){
+  const b=battle, m=b.actor, list=m.skills||[];
+  if(b.spell>=list.length){ enterCommand(); return; }   // もどる
+  const s=list[b.spell];
+  if(m.mp<s.mp){ queueMsg(["MPが たりない！"], enterCommand); return; }
+  castAction(m,s);
+}
+function actorItem(){
   if(stats.herb<=0){ queueMsg(["やくそうが ない！"], enterCommand); return; }
-  stats.herb--; const h=20+Math.floor(Math.random()*8); stats.hp=Math.min(stats.maxhp, stats.hp+h); fx("heal");
-  queueMsg(["やくそうを つかった！","HPが "+h+" かいふくした！"], enemyTurn);
+  const m=battle.actor;
+  stats.herb--; const h=20+Math.floor(Math.random()*8); m.hp=Math.min(m.maxhp, m.hp+h); fx("heal");
+  queueMsg([m.name+"は やくそうを つかった！", m.name+"の HPが "+h+" かいふく！"], afterActorAction);
 }
 function tryFlee(){
-  if(Math.random()<0.6) queueMsg(["勇者は にげだした！"], endBattle);
+  if(Math.random()<0.6) queueMsg(["パーティは にげだした！"], endBattle);
   else queueMsg(["まわりこまれて しまった！"], enemyTurn);
 }
 function enemyTurn(){
-  const d=calcDmg(battle.enemy.atk, defTotal());
-  stats.hp-=d; battle.shakeP=12; fx("hit");
-  queueMsg([battle.enemy.name+"の こうげき！","勇者は "+d+"の ダメージ！"],
-    ()=>{ if(stats.hp<=0) loseBattle(); else enterCommand(); });
+  const e=battle.enemy, alive=aliveMembers();
+  if(alive.length===0){ loseBattle(); return; }
+  const t=alive[Math.floor(Math.random()*alive.length)];
+  const d=calcDmg(e.atk, defOf(t)); t.hp-=d; battle.shakeP=12; fx("hit");
+  const lines=[e.name+"の こうげき！", t.name+"は "+d+"の ダメージ！"];
+  if(t.hp<=0){ t.hp=0; t.down=true; lines.push(t.name+"は たおれた！"); }
+  queueMsg(lines, ()=>{ if(aliveMembers().length===0) loseBattle(); else startRound(); });
 }
-function gainExp(){
+function gainExp(ex){
   const msgs=[];
-  while(stats.exp>=needExp(stats.lv)){
-    stats.exp-=needExp(stats.lv); stats.lv++;
-    stats.maxhp+=6; stats.maxmp+=3; stats.atk+=2; stats.def+=1;
-    stats.hp=stats.maxhp; stats.mp=stats.maxmp; fx("level");
-    msgs.push("レベルが あがった！　Lv"+stats.lv+"！");
+  for(const m of party){ if(m.down) continue;
+    m.exp=(m.exp||0)+ex;
+    while(m.exp>=needExp(m.lv)){
+      m.exp-=needExp(m.lv); m.lv++;
+      m.maxhp+=6; m.maxmp+=3; m.atk+=2; m.def+=1; m.hp=m.maxhp; m.mp=m.maxmp;
+      msgs.push(m.name+"は レベル"+m.lv+"に あがった！");
+    }
   }
+  if(msgs.length) fx("level");
   return msgs;
 }
 function winBattle(){
   const e=battle.enemy; fx("win");
-  stats.exp+=e.exp; stats.gold+=e.gold;
-  const lines=[e.name+"を たおした！","けいけんち "+e.exp+"を かくとく！", e.gold+"ゴールド てにいれた！"];
-  lines.push(...gainExp());
-  queueMsg(lines, endBattle);
+  stats.gold+=e.gold;
+  const lines=[e.name+"を たおした！","けいけんち "+e.exp+"　"+e.gold+"ゴールド！"];
+  lines.push(...gainExp(e.exp));
+  const cb=battle.onWin;
+  queueMsg(lines, ()=>{ endBattle(); if(cb) cb(); });   // 強制戦闘なら勝利後イベントへ
 }
 function loseBattle(){
-  queueMsg(["勇者は ちからつきた…","きょうかいで めをさました…"], ()=>{
-    stats.hp=stats.maxhp; stats.mp=stats.maxmp;
+  queueMsg(["パーティは ぜんめつした…","きょうかいで めをさました…"], ()=>{
+    for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; }
     battle=null; encCooldown=120;
     loadMap(respawn.map, respawn.tx, respawn.ty);   // 教会(リスポーン地点)で復活
   });
 }
 function endBattle(){ mode="field"; battle=null; encCooldown=100; }
+
+// ====== イベント：洞窟で魔法使いを救出して仲間にする ======
+function eventRescueMage(){
+  showScene(["どうくつの おくで……","まもの が 魔法使いを おそっている！"], ()=>{
+    startBattle(GAME_DATA.enemies[2], ()=>{          // ホネナイトと強制戦闘 → 勝利で仲間化
+      flags.mageRescued=true;
+      recruit(makeMage()); saveGame();
+      showScene([
+        "魔法使いを たすけだした！",
+        "マリン「ありがとう、たすかったわ。",
+        "　おれいに いっしょに たたかわせて！」",
+        "マリンが なかまに くわわった！"
+      ]);
+    });
+  });
+}
 
 // ====== 施設（宿屋/武器屋/道具屋/教会）＆セーブ ======
 function openService(b){
@@ -559,10 +731,11 @@ function buyItem(it){
   stats.gold-=it.price; stats[it.key]=(stats[it.key]||0)+1;
   svcMsg([it.name+"を かった！"], openItemShop);
 }
-function saveGame(){ try{ localStorage.setItem("rpgQuestSave", JSON.stringify({stats, respawn})); }catch(e){} }
+function saveGame(){ try{ localStorage.setItem("rpgQuestSave", JSON.stringify({party, respawn, flags})); }catch(e){} }
 function loadGame(){
   try{ const s=JSON.parse(localStorage.getItem("rpgQuestSave"));
-    if(s&&s.stats){ Object.assign(stats, s.stats); if(s.respawn) respawn=s.respawn; return true; }
+    if(s&&s.party&&s.party.length){ party=s.party; stats=party[0];
+      if(s.respawn) respawn=s.respawn; if(s.flags) Object.assign(flags, s.flags); return true; }
   }catch(e){} return false;
 }
 
@@ -586,13 +759,16 @@ document.addEventListener("keydown",(e)=>{
     const b=battle; if(!b) return;
     if(b.state==="msg"){ if(k===" "||e.key==="Enter") advanceBattleMsg(); }
     else if(b.state==="command"){
-      if(k==="w"||e.key==="ArrowUp") b.cmd=(b.cmd+3)%4;
-      if(k==="s"||e.key==="ArrowDown") b.cmd=(b.cmd+1)%4;
+      const nc=BATTLE_CMDS.length;
+      if(k==="w"||e.key==="ArrowUp") b.cmd=(b.cmd+nc-1)%nc;
+      if(k==="s"||e.key==="ArrowDown") b.cmd=(b.cmd+1)%nc;
       if(k===" "||e.key==="Enter") confirmCommand();
-    }else if(b.state==="spell"){
-      if(k==="w"||e.key==="ArrowUp") b.spell=(b.spell+2)%3;
-      if(k==="s"||e.key==="ArrowDown") b.spell=(b.spell+1)%3;
-      if(k===" "||e.key==="Enter") confirmSpell();
+    }else if(b.state==="spell"||b.state==="skill"){
+      const list=(b.state==="skill"?b.actor.skills:b.actor.spells)||[];
+      const n=list.length+1;
+      if(k==="w"||e.key==="ArrowUp") b.spell=(b.spell+n-1)%n;
+      if(k==="s"||e.key==="ArrowDown") b.spell=(b.spell+1)%n;
+      if(k===" "||e.key==="Enter"){ b.state==="skill"?confirmSkill():confirmSpell(); }
     }
     return;
   }
@@ -637,6 +813,7 @@ canvas.addEventListener("pointerdown",(e)=>{
     if(b.rects){ for(const r of b.rects){
       if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h){
         if(b.state==="command"){ b.cmd=r.i; confirmCommand(); }
+        else if(b.state==="skill"){ b.spell=r.i; confirmSkill(); }
         else { b.spell=r.i; confirmSpell(); }
         return;
       } } }
@@ -659,12 +836,26 @@ canvas.addEventListener("pointerup",()=>{ tapDir=null; });
 canvas.addEventListener("pointerleave",()=>{ tapDir=null; });
 
 // ====== ハードウェア効果音（Arduinoのブザー＋WS2812 LED） ======
-function fx(s){ try{ fetch("/fx?s="+s,{cache:"no-store"}); }catch(e){} }
+// 短時間に連続して鳴らすとArduino側が詰まるので最小間隔をあける（間引き）
+let lastFx=0;
+function fx(s){
+  const now=Date.now();
+  if(now-lastFx < 120) return;   // 120ms以内の連続は無視
+  lastFx=now;
+  try{ fetch("/fx?s="+s,{cache:"no-store"}); }catch(e){}
+}
 
 // ====== ジョイスティック（/state をポーリング） ======
-let joyState={x:512,y:512,b:0}, joyNav=true, joyBtn=true;
+let joyState={x:512,y:512,b:0}, joyNav=true, joyBtn=true, joyBusy=false;
 async function pollJoy(){
-  try{ const r=await fetch("/state",{cache:"no-store"}); if(!r.ok) return; applyJoy(await r.json()); }catch(e){}
+  if(joyBusy) return;                 // 前回の通信が終わるまで重ねない
+  joyBusy=true;
+  try{
+    const c=new AbortController(); const to=setTimeout(()=>c.abort(),500);  // 500msで打ち切り
+    const r=await fetch("/state",{cache:"no-store",signal:c.signal}); clearTimeout(to);
+    if(r.ok) applyJoy(await r.json());
+  }catch(e){}
+  joyBusy=false;
 }
 function applyJoy(j){
   joyState=j;
@@ -679,8 +870,8 @@ function applyJoy(j){
 }
 function joyNavDo(up,down,left,right){
   if(mode==="battle"){ const b=battle; if(!b)return;
-    if(b.state==="command"){ if(up)b.cmd=(b.cmd+3)%4; if(down)b.cmd=(b.cmd+1)%4; }
-    else if(b.state==="spell"){ if(up)b.spell=(b.spell+2)%3; if(down)b.spell=(b.spell+1)%3; }
+    if(b.state==="command"){ const nc=BATTLE_CMDS.length; if(up)b.cmd=(b.cmd+nc-1)%nc; if(down)b.cmd=(b.cmd+1)%nc; }
+    else if(b.state==="spell"||b.state==="skill"){ const list=(b.state==="skill"?b.actor.skills:b.actor.spells)||[]; const n=list.length+1; if(up)b.spell=(b.spell+n-1)%n; if(down)b.spell=(b.spell+1)%n; }
   }else if(mode==="service"){ const s=service; if(!s||s.phase!=="menu")return; const n=s.labels.length;
     if(up)s.cursor=Math.max(0,s.cursor-2); if(down)s.cursor=Math.min(n-1,s.cursor+2);
     if(left)s.cursor=Math.max(0,s.cursor-1); if(right)s.cursor=Math.min(n-1,s.cursor+1);
@@ -691,11 +882,11 @@ function joyButton(){
   else if(mode==="talk"){ advanceDialog(); }
   else if(mode==="status"){ mode="field"; }
   else if(mode==="battle"){ const b=battle; if(!b)return;
-    if(b.state==="msg") advanceBattleMsg(); else if(b.state==="command") confirmCommand(); else if(b.state==="spell") confirmSpell(); }
+    if(b.state==="msg") advanceBattleMsg(); else if(b.state==="command") confirmCommand(); else if(b.state==="skill") confirmSkill(); else if(b.state==="spell") confirmSpell(); }
   else if(mode==="service"){ const s=service; if(!s)return;
     if(s.phase==="msg") advanceSvc(); else confirmSvc(); }
 }
-setInterval(pollJoy,120);
+setInterval(pollJoy,150);
 
 // ====== 更新 ======
 function update(){
@@ -716,11 +907,14 @@ function update(){
     updateCamera();
     // 立っているタイル
     const ptx=Math.floor((player.x+player.size/2)/TILE), pty=Math.floor((player.y+player.size/2)/TILE);
-    // 出口(G)で別マップへ
-    if((dx||dy) && map[pty] && map[pty][ptx]==="G"){
-      const ex=GAME_DATA[currentMap].exit;
-      if(ex){ loadMap(ex.to, ex.tx, ex.ty); return; }
+    const tile = map[pty] ? map[pty][ptx] : "";
+    // 出口タイル（G/C など）で別マップへ
+    if((dx||dy)){
+      const exs=GAME_DATA[currentMap].exits;
+      if(exs && exs[tile]){ const ex=exs[tile]; loadMap(ex.to, ex.tx, ex.ty); return; }
     }
+    // 洞窟の救出イベント（一度だけ）
+    if((dx||dy) && tile==="E" && !flags.mageRescued){ eventRescueMage(); return; }
     // 施設のドアに入ると施設メニュー
     if((dx||dy)){ const b=doorAt(ptx,pty); if(b){ openService(b); return; } }
     // 草地を歩くとランダムエンカウント（安全マップ=街では出ない）
@@ -752,14 +946,58 @@ function hash(x,y){ let h=(x*374761393+y*668265263)>>>0; h=(h^(h>>13))*127412617
 function drawTile(c,x,y){
   const gx=x*TILE, gy=y*TILE;
   if(c==="W"){ ctx.drawImage(SPR.water[Math.floor(Date.now()/350)%2], gx, gy); return; }
-  ctx.drawImage(SPR.grass[(x+y)&1], gx, gy);       // 草地ベース
-  if(c==="T") ctx.drawImage(SPR.tree, gx, gy);
-  else if(c==="R") ctx.drawImage(SPR.rock, gx, gy);
+  // 床ベース（暗いエリア=石畳 / 通常=草地）
+  ctx.drawImage((darkArea?SPR.stone:SPR.grass)[(x+y)&1], gx, gy);
+  if(c==="R"){
+    if(darkArea){ // 洞窟の岩壁（岩肌・ひび・陰影）
+      ctx.fillStyle="#2b2833"; ctx.fillRect(gx,gy,TILE,TILE);
+      ctx.fillStyle="#3a3648"; ctx.fillRect(gx,gy,TILE,7);            // 上の明るい縁
+      ctx.fillStyle="#161420"; ctx.fillRect(gx,gy+TILE-9,TILE,9);     // 下の影
+      const h1=hash(x,y), h2=hash(x+9,y+3);
+      ctx.fillStyle="#211e2a";                                        // ひび
+      ctx.fillRect(gx+8+h1*40, gy+16, 4, 22);
+      ctx.fillRect(gx+TILE-20, gy+10+h2*20, 4, 16);
+      ctx.fillStyle="#46415a";                                        // 岩の出っぱり
+      ctx.fillRect(gx+20+h2*24, gy+12, 10, 6);
+    }else ctx.drawImage(SPR.rock, gx, gy);
+  }
+  else if(c==="T") ctx.drawImage(SPR.tree, gx, gy);
   else if(c==="H") ctx.drawImage(SPR.house, gx, gy);
   else if(c==="d") ctx.drawImage(SPR.dead, gx, gy);
-  else if(c==="G"){ // 村の入口（家々の前の土の道。文字は出さない）
-    ctx.fillStyle="#b8945a"; ctx.fillRect(gx+TILE*0.28,gy,TILE*0.44,TILE);                // 土の道
-    ctx.fillStyle="#a8824a"; ctx.fillRect(gx+TILE*0.28,gy,4,TILE); ctx.fillRect(gx+TILE*0.72-4,gy,4,TILE);
+  else if(c==="C"){ // 東の洞窟の入口（岩山＋黒い洞穴）
+    // 岩山
+    ctx.fillStyle="#6f6f7a"; ctx.beginPath();
+    ctx.moveTo(gx+2,gy+TILE); ctx.lineTo(gx+8,gy+20); ctx.lineTo(gx+TILE/2,gy+2);
+    ctx.lineTo(gx+TILE-8,gy+20); ctx.lineTo(gx+TILE-2,gy+TILE); ctx.closePath(); ctx.fill();
+    ctx.fillStyle="#565662"; ctx.beginPath();   // 右側の陰
+    ctx.moveTo(gx+TILE/2,gy+2); ctx.lineTo(gx+TILE-8,gy+20); ctx.lineTo(gx+TILE-2,gy+TILE);
+    ctx.lineTo(gx+TILE/2,gy+TILE); ctx.closePath(); ctx.fill();
+    ctx.fillStyle="#83838e";                     // 岩のハイライト
+    ctx.fillRect(gx+TILE*0.3,gy+24,8,4); ctx.fillRect(gx+TILE*0.5,gy+34,6,4);
+    // 黒い洞穴
+    ctx.fillStyle="#07070d"; ctx.beginPath();
+    ctx.moveTo(gx+TILE*0.30,gy+TILE); ctx.lineTo(gx+TILE*0.30,gy+TILE*0.56);
+    ctx.arc(gx+TILE/2,gy+TILE*0.56,TILE*0.20,Math.PI,0);
+    ctx.lineTo(gx+TILE*0.70,gy+TILE); ctx.closePath(); ctx.fill();
+    // 入口の小石
+    ctx.fillStyle="#4a4a54"; ctx.fillRect(gx+10,gy+TILE-9,12,7); ctx.fillRect(gx+TILE-22,gy+TILE-7,12,5);
+  }
+  else if(c==="G"){
+    if(darkArea){ // 洞窟の出口（明るい穴）
+      ctx.fillStyle="#cabf8a"; ctx.beginPath();
+      ctx.moveTo(gx+18,gy+TILE); ctx.lineTo(gx+18,gy+30); ctx.arc(gx+TILE/2,gy+30,TILE/2-18,Math.PI,0); ctx.lineTo(gx+TILE-18,gy+TILE); ctx.closePath(); ctx.fill();
+    }else{ // 村の入口（土の道）
+      ctx.fillStyle="#b8945a"; ctx.fillRect(gx+TILE*0.28,gy,TILE*0.44,TILE);
+      ctx.fillStyle="#a8824a"; ctx.fillRect(gx+TILE*0.28,gy,4,TILE); ctx.fillRect(gx+TILE*0.72-4,gy,4,TILE);
+    }
+  }
+  else if(c==="E" && !flags.mageRescued){ // 救出シーン（魔法使い＋襲う骸骨）
+    const mw=72;
+    ctx.drawImage(SPR.bone, gx-TILE*0.55, gy+TILE-mw*1.1, mw, mw);   // 骸骨（左）
+    ctx.drawImage(SPR.mageField, gx+TILE/2-mw/2, gy+TILE-mw+8, mw, mw); // 魔法使い
+    const bob=Math.sin(Date.now()*0.006)*3;
+    ctx.fillStyle="#ff5a5a"; ctx.font="bold 26px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("!", gx+TILE/2, gy+TILE-mw-6+bob); ctx.textAlign="left";
   }
 }
 
@@ -869,7 +1107,7 @@ function winBox(x,y,w,h){
 }
 function drawMenu(items){
   const b=battle; b.rects=[];
-  const x=70, y0=VIEW-150, lh=40, sel=b.state==="command"?b.cmd:b.spell;
+  const x=70, y0=VIEW-128, lh=37, sel=b.state==="command"?b.cmd:b.spell;
   ctx.font="26px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
   for(let i=0;i<items.length;i++){
     const iy=y0+i*lh;
@@ -893,21 +1131,38 @@ function drawBattle(){
   if(!(b.flash>0 && Math.floor(Date.now()/60)%2)) ctx.drawImage(SPR[b.enemy.spr], ex, ey, ew, ew);
   ctx.fillStyle="#fff"; ctx.font="22px sans-serif"; ctx.textAlign="center";
   ctx.fillText(b.enemy.name, VIEW/2, ey-14); ctx.textAlign="left";
-  // ステータス（左上）
-  winBox(20,20,270,128);
-  ctx.fillStyle="#fff"; ctx.font="22px sans-serif"; ctx.fillText("勇者", 42, 54);
-  ctx.font="20px monospace";
-  ctx.fillStyle = stats.hp<=stats.maxhp*0.25 ? "#ff6a6a":"#fff";
-  ctx.fillText("HP "+stats.hp+"/"+stats.maxhp, 42, 90);
-  ctx.fillStyle="#9fd0ff"; ctx.fillText("MP "+stats.mp+"/"+stats.maxmp, 42, 118);
-  ctx.fillStyle="#ffd23f"; ctx.font="18px monospace"; ctx.fillText("Lv "+stats.lv, 200, 54);
+  // パーティ状態（左上・全員）
+  winBox(20,20,380,24+party.length*40);
+  ctx.textAlign="left"; let yy=50;
+  for(const m of party){
+    ctx.font="20px sans-serif"; ctx.fillStyle=m.down?"#777":"#fff"; ctx.fillText(m.name,38,yy);
+    ctx.font="16px monospace";
+    ctx.fillStyle=m.down?"#777":(m.hp<=m.maxhp*0.25?"#ff6a6a":"#cfe0ff"); ctx.fillText("HP"+m.hp+"/"+m.maxhp,150,yy);
+    ctx.fillStyle=m.down?"#777":"#9fd0ff"; ctx.fillText("MP"+m.mp,265,yy);
+    ctx.font="15px sans-serif";
+    if(m.buffAtkT>0){ ctx.fillStyle="#ff9a4a"; ctx.fillText("攻↑",318,yy); }
+    if(m.buffDefT>0){ ctx.fillStyle="#6ad0ff"; ctx.fillText("守↑",352,yy); }
+    yy+=40;
+  }
   // プレイヤー被弾フラッシュ
   if(b.shakeP>0 && Math.floor(Date.now()/50)%2){ ctx.fillStyle="rgba(200,30,30,0.18)"; ctx.fillRect(0,0,VIEW,VIEW); }
   // 下部ウィンドウ
   const my=VIEW-200;
   winBox(20,my,VIEW-40,180);
+  if(b.state==="command"||b.state==="spell"||b.state==="skill"){
+    // 誰のターンか
+    ctx.fillStyle="#ffd23f"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
+    ctx.fillText(b.actor.name+"の ばん", 50, my+34);
+  }
   if(b.state==="command") drawMenu(BATTLE_CMDS);
-  else if(b.state==="spell") drawMenu(SPELLS.map(s=> s.mp? s.name+"("+s.mp+")":s.name));
+  else if(b.state==="spell"){
+    const list=(b.actor.spells||[]).map(s=> s.name+(s.mp>0?"("+s.mp+")":""));
+    list.push("もどる"); drawMenu(list);
+  }
+  else if(b.state==="skill"){
+    const list=(b.actor.skills||[]).map(s=> s.name+(s.mp>0?"("+s.mp+")":""));
+    list.push("もどる"); drawMenu(list);
+  }
   else{
     ctx.fillStyle="#fff"; ctx.font="26px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
     const line=(b.msg[b.msgIdx]||"").slice(0,b.shown);
@@ -935,46 +1190,34 @@ function drawStatus(){
   winBox(x,y,w,h);
   ctx.textAlign="left";
   // タイトル
-  ctx.fillStyle="#ffd23f"; ctx.font="28px 'Hiragino Kaku Gothic ProN',sans-serif";
-  ctx.fillText("勇者の そうび・じょうたい", x+34, y+46);
-  // ステータス
-  ctx.font="24px monospace";
-  let ly=y+90; const lx=x+36, lh=38;
-  const rows=[
-    ["レベル", stats.lv],
-    ["HP", stats.hp+" / "+stats.maxhp],
-    ["MP", stats.mp+" / "+stats.maxmp],
-    ["こうげき力", atkTotal()+(stats.weapon?" (+"+stats.weapon.atk+")":"")],
-    ["しゅび力", defTotal()+(stats.armor?" (+"+stats.armor.def+")":"")],
-    ["ぶき", stats.weapon? stats.weapon.name:"なし"],
-    ["よろい", stats.armor? stats.armor.name:"なし"],
-    ["ゴールド", stats.gold+" G"],
-    ["つぎのLvまで", Math.max(0, needExp(stats.lv)-stats.exp)]
-  ];
-  ctx.fillStyle="#fff";
-  for(const [k,v] of rows){
-    ctx.fillStyle="#9fb0d0"; ctx.fillText(k, lx, ly);
-    ctx.fillStyle="#fff";     ctx.fillText(""+v, lx+260, ly);
-    ly+=lh;
+  ctx.fillStyle="#ffd23f"; ctx.font="26px 'Hiragino Kaku Gothic ProN',sans-serif";
+  ctx.fillText("パーティの じょうたい", x+34, y+44);
+  // 各メンバー
+  const lx=x+36; let ly=y+86;
+  for(const m of party){
+    ctx.fillStyle = m===stats ? "#ffe9a8" : "#cfe0ff"; ctx.font="24px 'Hiragino Kaku Gothic ProN',sans-serif";
+    ctx.fillText(m.name+"  Lv"+m.lv, lx, ly); ly+=32;
+    ctx.font="20px monospace"; ctx.fillStyle="#fff";
+    ctx.fillText("HP "+m.hp+"/"+m.maxhp+"   MP "+m.mp+"/"+m.maxmp, lx+16, ly); ly+=28;
+    ctx.fillStyle="#9fb0d0";
+    ctx.fillText("ちから "+atkOf(m)+"   まもり "+defOf(m), lx+16, ly); ly+=30;
+    if(m===stats){
+      ctx.fillStyle="#bda0e0";
+      ctx.fillText("ぶき:"+(m.weapon?m.weapon.name:"なし")+"  よろい:"+(m.armor?m.armor.name:"なし"), lx+16, ly); ly+=30;
+    }
+    ly+=6;
   }
-  // もちもの（持っているものだけ）
-  ly+=8;
+  // 所持金・もちもの
   ctx.fillStyle="#ffd23f"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif";
-  ctx.fillText("もちもの", lx, ly); ly+=34;
-  const items=[];
-  if(stats.herb>0)   items.push("やくそう ×"+stats.herb);
-  if(stats.elixir>0) items.push("エリクサー ×"+stats.elixir);
-  ctx.fillStyle="#fff"; ctx.font="22px monospace";
-  ctx.fillText(items.length? items.join("   ") : "なし", lx+20, ly);
-  // 覚えている呪文
-  ly+=40;
-  ctx.fillStyle="#ffd23f"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif";
-  ctx.fillText("じゅもん", lx, ly); ly+=34;
-  ctx.fillStyle="#9fd0ff"; ctx.font="22px monospace";
-  ctx.fillText("かえん(MP3)   いやし(MP4)", lx+20, ly);
+  ctx.fillText("しょじきん・もちもの", lx, ly); ly+=32;
+  const items=[stats.gold+" G"];
+  if(stats.herb>0)   items.push("やくそう×"+stats.herb);
+  if(stats.elixir>0) items.push("エリクサー×"+stats.elixir);
+  ctx.fillStyle="#fff"; ctx.font="20px monospace";
+  ctx.fillText(items.join("   "), lx+16, ly);
   // 閉じる案内
   ctx.fillStyle="#9aa0b0"; ctx.font="18px sans-serif"; ctx.textAlign="center";
-  ctx.fillText("M キー / タップ でとじる", VIEW/2, y+h-20);
+  ctx.fillText("M キー / タップ でとじる", VIEW/2, y+h-18);
   ctx.textAlign="left";
 }
 
@@ -1053,6 +1296,7 @@ function updateService(){
 
 function loop(){ update(); if(mode==="service") updateService(); draw(); requestAnimationFrame(loop); }
 buildSprites(); loadGame(); loadMap(respawn.map, respawn.tx, respawn.ty); loop();
+const _ld=document.getElementById("loading"); if(_ld) _ld.style.display="none";   // 読み込み完了
 </script>
 </body>
 </html>
@@ -1081,17 +1325,19 @@ void sendShort(WiFiClient& client, const String& body){
 }
 
 void loop(){
+  serviceSeq();   // メロディを非ブロッキングで進める
   // LEDの自動消灯（非ブロッキング）
   if(ledOffAt && millis()>ledOffAt){ strip.clear(); strip.show(); ledOffAt=0; }
 
   WiFiClient client=server.available();
   if(client){
+    client.setTimeout(40);              // 読み取り待ちを短く（既定1秒だと詰まる）
     // リクエスト1行目だけ読んでパスを取得
     String reqLine = client.readStringUntil('\n');
-    // 残りのヘッダを読み飛ばす
-    while(client.connected()){
+    // 残りのヘッダを読み飛ばす（最大20行・空行で終了）
+    for(int i=0;i<20;i++){
       String h=client.readStringUntil('\n');
-      if(h=="\r"||h.length()==0) break;
+      if(h.length()<=1) break;          // "\r" か 空
     }
     // パス抽出: "GET /xxx HTTP/1.1"
     int sp1=reqLine.indexOf(' '), sp2=reqLine.indexOf(' ', sp1+1);

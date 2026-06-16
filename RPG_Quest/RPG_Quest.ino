@@ -100,6 +100,10 @@ canvas{display:block;border-radius:4px;background:#2a3a2a;touch-action:none;max-
 <div id="hint">WASD / 矢印で移動　Space / Enter で話す　スマホはタップ</div>
 
 <script>
+/*IMG_EMBED_START*/
+const CHARIMG={};
+(function(){const D={hero:"iVBORw0KGgoAAAANSUhEUgAAADAAAABACAMAAABr/gR0AAAAk1BMVEX////18tXs1Z/ut13HzdC9r4ubtLmWoaK0kkSMkpareReNeEV4g453dV1jcHc0cbmHXBNhXVFxRwxdRRdOWmNTU1BKSkhLPSAWWK4BUssrRWQCRacLO38AOpQ9PDgzOUFSLAY6KhIxKR8lKjEjGg8FMG8LK1YHH0YWHCQMFB8LDBAEAwMAK3MADzEAADIAAAAAAAAbHpkvAAAAMXRSTlP///////////////////////////////////////////////////////////////8AH5pOIQAABhVJREFUeNp1lot2gygQhr2ioCGoqPF+AUGN7ub9n27HtE1tN/WcnCrlY4Zh+GeMx+lJH388afZ6NU7Do/saHztOU/H6T4jfApn5CbTdzg3HmfUXgq3sDTC7Zvt8EarYMACiatTHSGhGb4D1E1BNUTTYdMwO/n4QfwEGBh9EVTwB5ABQVKoDX52/LICrYisOIEQUlQfQ6FFczL8Aw0qzqQITTYZDqo/5W9fC/LebfkSWaWC8l7wuSuRyxLc6o5pj0zTd9v05WNaFcsfwQuxY19DpQscJeeRa7uXtOaSZ62cZMg3DQZdrUSPqOAjRLHUv41vgIVrZceRhTEOLT67TURqikC9j+3gPPB5dSDsJz4hMy8mONxih4vE3wGXPGOulDMP23vcslrLF7Q8gik6fq+xj1veDnwx9nwQREH1/n89Aa3rr92fb9z0seg+iOM598KjvZdzzM5AZTvf9OfRyGIY8m/NB+u2cBsMBDb+A86baIb7HGIkgD+yocy6J9Nc1+wWE54HBl8zEGs7QKifDHph//xEWo4XDOQOrH8QWuh4Avlp2bsfLT+ARGt75LosxGWwbph8/yx+S+fELoAbC55NJ/119mG4flJ3c18dvIDOQ9+3TvHbZLgLb8gGwk11m8zz/PGnhOYi+ksnDFOt9SXywwfJ973DpobBrz6mBDY9+3n5IbRN7ebzvcoQT+EcMmCJIXpydLxA1vE+fBDJMJwyzmLW7VvucsAHDGhBHOp+A1HA+gLHEyMEhnqdL4LuEkIBrHlGEPMqz9huYHdN7ZksO95hzB81Vcb26Pr1VlfKsoKTY9Zn8BlYMcToCMaYYYR5yfQUniuqpHhynIcKRWMXpPrxOYr23kVhk7cBzfQK3ZFzSbP1nWcaxewGZ+bWJZdq2pa/AwvXDQpUM87yMgW0TEg9fgPAM72nivt2KSoupusL85pAnlY3zyGD6JUoZSU4AbCIHBVCwT8HKplFlqba6jLL9Hlh2VhVVVWck/7zTsAnK14BECKtJr1k0qsh1AyUSLtbctA/NxJeqSVj3AcwIwyW2SY69YFn2fdPUpzzwJ63X1baC4lpcbVJWNes/ANHiKydEIpMG/b73Q9dmHi4TIeVwd+3bFcLlkrpqoicQtQvDBSeyg2C18b72hCShc6MjA5VJLB8MFAXym6Yu4xGAwPZt4pOhzy+cz8suOhAK6t3oEA/zElhRUYDiwuVLy40NACQ2hDiRMRlk2u169lAgR8W5WNaeK2LTIrSO20QI655A28t7TA6R68d92qmBL/mlqLemjOcIgLSgPmSiDw6qJ3BIBegbKJJcJ7Ug5M8cw9EVJdOBZgAUUTYRIjo1kU+giwkDwbrrek8dHG3cO4ArUTztSQAZUlWETPWWPTf9zKKYxeusp3rHKMir3DsS6Up0d9GENDC/Jmyrt7T/Uu+2jwe5wRo5DcnwAjbhawYn1jQduNRMLHnJvbizeFGNBg/ycmshNEXhk121bQ9rN3XN4mkrWftdHyS7xLqpdynqWy19G+qIH+t62teYJHXddKpRYOAbABGVW9Psurnd6kkGru8nuq5rSEbI66luYP24OwHdMig4/F1kHZhQ+/GoulZdNwPBkoyRY/43oIpmapptCBBK1LTvk1KLnvTFwcmySyhjbGjPNU5ORQ3APoQeB18WNU3g/pK7IUolgCsIVXYGdFEdforQML2W+bk6vE/8KHUMxIWq9VRN918AbGGboYtBPPXzHSKpW0yP2s7nqZ5UU6sTIGrwCM5nz0AWBST4BICayxm6B2/eIVq6qc7A3BSbVnWjKAbx4+0R0Bo6H5qCsLVzU0MW/AIqLaXQAnkcmgUAGnh0S8EA3CqltdI/gO7DQdBv2AP0k/MRpXmRKag97AECKvYfwKP7AGaMQswzaF5aAbPWlEK5yZ46Oqv0/73GGDjOhWbzV/noBA89E2fjX82JZDgERXq1R2NQYte7nCvpD6CF1qQfQjf5KgYjc/EAY/I90CXko/WRX8VggfeYQdrlbwEJ6sTg6vX9awQ+4hiGY/kWgMVisC+/9zjIIY6fZt8269D5QLH9WflH0FcYfLWh/wEKY3xo1eZeVAAAAABJRU5ErkJggg==",mage:"iVBORw0KGgoAAAANSUhEUgAAACoAAABACAMAAABbchVVAAAAk1BMVEX+//X127HptlDhlZmusoO/lEC7hER/gIm7bX7EZAKaZy2YUUN9ZDF5Tx5cXE9BV1eILK2CJqySQyiGM3h1PyhyLk17JKRxIo1UPDFZOwxVKTpUKAY7Oz4qNkA5JxUlJi18GqdmG49cGX1YEoFLFWxBGixEDWczGiczEEMgFB8tB08iCCwIBAsAATYAAQAAAAAAAADyVqDWAAAAMXRSTlP///////////////////////////////////////////////////////////////8AH5pOIQAABS9JREFUeNqNlot2oygYgKOJNqgkeEMRiwEJcnF2+/5Pt79pOk1m2pml57TGfP3vF3Zv35zRWjs+vdl9Q066LKl5/R/ouJFlqezfUVvCoZTI6W/oqyQbqijRr39GN/XbUZ7ST9++RAO9Ce2oNbSz5z+goyI3oV2ngwb+/D1q39WDrSoYLTs7jd+gkyZ3VKoQrNE+y8avUdt9omadnHMoe/0SnTZLKa07Wkqlb3GdMP5A94+on1WtDlGStEoZbd3mZ7JZ8IneeTfkaZzEMUIoTps2rG9vAsUIT4B+iHz/22OEsn5o23oYtmcs4CVDSNykAjPP3f0fBB6skvRyuVAq5+AwA9WCsXf07aXckwu9V6m+lCW5n1JKfwVjwTcIwQ5k0v0uutzYDSTkmNzPkdDLrD+qANCu3O+IlORtNPJyPGYZ5kJwzlfBsvxYz/OdBQPAMNBEiFVdmmIsOEYV+I8LeGY4y2tl7B3VJZ3L/b4TGDHxL9+o268CHGegIMta7W9x7RMDSdzLIlmd9wIgEAWCeZowkM7X1WGcDyOgIknqNhmKmHnjLciDyDQNq6pi5HzT4H1wDDcnMEAkMaQD4WCMgTgiMR7OL0WyP51PrsKYBw/HMbHFdeRglQuz1gb8qNjh8OMQRdH5HDUsy5gz3mhjx1sNnBeMxCl4YwTOKxwdzIbql13Ks+amzU4fRcigPE7RaXSsEojto42MDoeowBWvXJimzy7YwvKy2+1OCGzlOXB7+In2rkIcsemxtyacCCAPEFmGmMuiKI6jKBUcYlYh9tSGQrhoFzFUYYGqNfTp/nDolxVcgKjd2Ts6YnEA9Rsq0OAFRJYL6xEPvIJE9I8di/nLjiNeCT+LtiviOI3TthZmDmB8xR5RtqGcN01XXmZSH+L4UBMqL7LtG6igJxSPuxeOhzqtCanrZn/sSU1JneZqqYR4REUmdgfBIWVtfUzxiZCepXWdDn6L9dMgWrk7Q/PNHTWQNd/kOVSPCcHMnvPxEZ2Kl+LYp1DzUlpVkoGxK0wXq0up3VMK3qZ9lEbN1kxKB9PJdFlyCSPLdKU0v6EJS7MkVbNZQWu2XPNZ+9XPXafMswFplLIUJ6jVIYirF8si/CBc0JR28/um+XCrjzMHHZopa4PAuChwD1W1biip86Z/QEfH3Q+eZddgrbHLqSn6raZXM9f7JM/ug+hjAnHPtpIPSknZi37puVHBt+kxjrEYH9AJc9tgIL1SnUzArWt21XrJ8zhj69PUnjCDNBgPQjtySa9DZrJMmAWKvoj7510gsPMGvKKSlnVyHZJ6wcs8YJFDzNdf0EVrHRSV5HJMLKB0nqVe16LZY/erVKNM6CjoP2ZGo/pCZCet9a6x4Ql1WHhYaVR2JY2LecZHWnayM0FbdkvYT3QMDGopyBJMpTGe5yKBBwgGFBrL5+kxAoZju+1URUtyQ2NKSwixCYBuNfMTbRUYu9RkCxWJmZzxhnYKyssPqNPrJ5rlDjuc13NZ1nXMqWQxAQu0zLOrx3XjHtBkBTTJW0KSNLFwEUiOKb20bYqEwyl6QDH6h8E7BG19jLGhpUHxMU1hucEgwgg/Bqt/xWwbMxhWCw/aBJjRsOHE1gOfO/Z+igRKbWIwtSE545uDuYzdrQN+uw+wbUsa1ffDbaNMtu9btXx1zXnNEli6VuedfkeNzFs/fXkjYtvIs9swf//eGa3t1/esV0DtTOXH9wEGiPrm8jS9TZRs6HRHIXXUfnPPchLaPrj7h2Cger9DJ2sn9/BxsdPPm95/JrNWg1BjFicAAAAASUVORK5CYII=",warrior:"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",sister:"iVBORw0KGgoAAAANSUhEUgAAACsAAABACAMAAAC0sH5rAAAAk1BMVEX5+/3v8PPs7PDt6eH127by04Xww2nttDbh3d7fzareuGLgryjMxcbNsXfAuLytsa/GoF6tn5XXoBXGmBzJjRK2iimzfhGqcwiZlZOXej6WaQ+OXQ1/gX5/YytUdnVhXVl/UgpsTxRmQQpUU1NPRTJNOhVLKwk8Qkw2Nzo5Lx8rLTEzJA4eICYNCQYAB0kAAAAAAAAbLDmhAAAAMXRSTlP///////////////////////////////////////////////////////////////8AH5pOIQAABXFJREFUeNqFlmtzq7oOhrmZm40xxmAwsDAOmGtm9///uqPunTZNp11Hn8j4iUaWXkty3r7Zsli7vP1ozjdyrsIwqs38f9lL48B3PSeJar39nZ106HouigLX8yM1/Y1dBALUTXHiuK4fyel3dmJR4roJQhih2HMxK81v7FK5DDluJCIuBHguc1JNP7OzChzGfTchmJMkdpFIYlqfP7MF+Zd1nJTHDtxQEEILff+JXQmNCU/c2E+Y5/seEjmhVP/zI9tQ4lYFCgMExUgLVgGaDz/6fRvhrMK8HTWY5KKlOW2On/Nwo00ljZFgpuusVVVD+/vP7Nq+k1HEI25EVHZWy/74xe9ljY4ihBXXTOMoqq3pzt/qthuMsTCDyoLBCA6f5+81FlgozUIEmWC6w7y2n2czm19ZydWyz1mQoGHfFynkhx72q432r+wsDIg2vrUBQs2a753Ucv+XXGRX6xd2ka2eGnLvAxTMV9x2upXvAS8lQxmSZvvKqqEzATkaYMfVR1oOkIehUDJBWajr5QurOyMMCzIIIUBZwDph5fRniKqqHYIJol8+2Z1rxc8hABTgAM2Gm7q+v51dCf9tBw0BPdijFlpzY9sgSFPwPZ2SGyUmyKQyLGWRNPaDVVwpI+T9PrMkQ+1+P2VnOikPyJ1KoeBK4uk/9pKyk+aUWp/nvuz2BA2dRmmpD9MprDtttHqwR2elmcep7IeWVYy1rB76GfRm8hF0YZVU5viIYdfdTp1ChCxDacKyqKIumXW3NEPFtNV6f+b3UKZ3PI/VuGqqgZUqgzeXL7aPT5CpubandjaoJ/Fi12+7vlmHrmOOF/t0121jBdxy/aKz1YCHOE4iPPV/1mkyPIq9mECs/ZSWZnvR5LpROAz5MrXzoabRcOa5Mb165zCfOn6wpgAUc9PGfVtPedxZHiVe1g65ffYI59H2yiwBdGAxmUzj0XoyNU9LoS/97K7OI2UCc2mPqqeU1QUt6vbaQbXT9Y8+v7+hY16W6Tw4i4uUK5KX1dGDTeM+79/8Xj3NC7nuIiOUiYYWvLr6PEgnxBI0v7I36sdsWnfOUoxwxaHQx05Bim2Gwld26z0vkes2R6ysGK/rNq3GvYhMu6RBurywt9iN8TJuIyZZkYmC0bTq56G0ZkJoOF7Y0fPDepxvfZq4XiaIQ9KqGU95nue0vOZhpW6Ap3rvi5S4Scorj0Rl01xGW/OQzSd7xG6orF5pk4J8KgEdO6qa/HbpU9nb+MLeYh9Pw30kwHpuwlwoN2vy/rad6uyL9Qt7UAcNLdob0kS+924xsFC8bYRWWdCvtThIkA4D23JS4Cfb0Hy8jDUZ7Y9PFpIbqGG+bjR+smGZ03yV6akZya9P9mq8sLvGdSQxfbCeh97ZDV6wZTR/+h1JIOa+3woYWk+2ArZf1GUxpf3nuxjdRG5Nf1DifbIusCTPr71feEKah9qdtfHwNDa3EViI1334FQWwt1tz6xDJbw92pnF5gNuCkphhyK+PHB8KzWAUNkczakTI+F8Qzs6YWPp+zalH+XstQlgNIBoImDZr/0dHhI7rB5tKWy8jzd2co8RLI8wDP0trCJiOWzuVKXso2LEstZc5VUHcBsaam2FcJr5I64I0hbbqLBGbPuJVfHnbrFJZ0vAgDZwAu04IE6KgTGq7XyKszUfOZglzDLqnwKpMEhyEHIWcYtlimETm7aqFeephh3k0d7IWHUY0CJlIw4SlvIOWrOH97PP3ubmZEr+vAgicIpTWXGkuzPXLjL3b87QGp7AaidrCj/PcfpnH8wSdR5v7cYGdWgmYsbdf2JMjXKvHGrBDOCEXv+0EMKRg3p2Pi5xWlvVf9od9P597yO3c9/3b/vA/21hK9YRP6b8AAAAASUVORK5CYII="};for(const k in D){const im=new Image();im.src="data:image/png;base64,"+D[k];CHARIMG[k]=im;}})();
+/*IMG_EMBED_END*/
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 const TILE=80, VIEW=800;
@@ -313,21 +317,38 @@ const GAME_DATA={
 };
 
 // ====== 商品・装備データ ======
+// jobs = 装備できる職業(role)。武器はatk、防具はdefを持つ
 const SHOP_WEAPON=[
-  {name:"どうのつるぎ", atk:6,  price:80},
-  {name:"はがねのけん", atk:14, price:350},
-  {name:"ほのおのけん", atk:24, price:1200}
+  // 剣（勇者）
+  {name:"どうのつるぎ",   atk:6,  price:80,   wtype:"剣",   jobs:["hero"]},
+  {name:"はがねのけん",   atk:14, price:350,  wtype:"剣",   jobs:["hero"]},
+  {name:"ほのおのけん",   atk:24, price:1200, wtype:"剣",   jobs:["hero"]},
+  // 斧（戦士）
+  {name:"いしのオノ",     atk:9,  price:120,  wtype:"斧",   jobs:["warrior"]},
+  {name:"バトルアックス", atk:19, price:520,  wtype:"斧",   jobs:["warrior"]},
+  // 杖（魔法使い）
+  {name:"かしのつえ",     atk:3,  price:60,   wtype:"杖",   jobs:["mage"]},
+  {name:"まどうのつえ",   atk:8,  price:300,  wtype:"杖",   jobs:["mage"]},
+  // メイス（修道女）
+  {name:"せいなるメイス", atk:5,  price:90,   wtype:"メイス", jobs:["priest"]},
+  {name:"ぎんのメイス",   atk:12, price:340,  wtype:"メイス", jobs:["priest"]}
 ];
 const SHOP_ARMOR=[
-  {name:"かわのよろい", def:5,  price:70},
-  {name:"てつのよろい", def:12, price:300},
-  {name:"はがねのよろい", def:20, price:1000}
+  // 鎧（勇者・戦士）
+  {name:"かわのよろい",   def:5,  price:70,   atype:"鎧",   jobs:["hero","warrior"]},
+  {name:"てつのよろい",   def:12, price:300,  atype:"鎧",   jobs:["hero","warrior"]},
+  {name:"はがねのよろい", def:20, price:1000, atype:"鎧",   jobs:["hero","warrior"]},
+  // ローブ（魔法使い・修道女）
+  {name:"ぬののローブ",   def:3,  price:50,   atype:"ローブ", jobs:["mage","priest"]},
+  {name:"まりょくのローブ",def:8,  price:260,  atype:"ローブ", jobs:["mage","priest"]},
+  {name:"せいれいのローブ",def:14, price:820,  atype:"ローブ", jobs:["mage","priest"]}
 ];
 const SHOP_ITEM=[
   {name:"やくそう",   key:"herb",   price:8},
   {name:"エリクサー", key:"elixir", price:500}
 ];
 const INN_COST=10;
+const REVIVE_COST=50;   // 教会での蘇生
 
 // ====== 状態 ======
 let mode="field";          // "field" | "talk" | "battle" | "status" | "service"
@@ -348,7 +369,7 @@ let dialog={active:false, lines:[], idx:0, name:"", shown:0, t:0};
 // 呪文/特技フォーマット: {name, mp, kind, power, mult, elem}
 //   kind: "mag"(攻撃魔法) / "phys"(物理特技) / "heal" / "buffAtk" / "buffDef"
 //   elem: "火" / "氷" / "雷" / "無"
-let party=[{ name:"勇者", role:"hero", color:"#2e57c8", lv:1, hp:22, maxhp:22, mp:10, maxmp:10,
+let party=[{ name:"勇者", role:"hero", job:"勇者", img:"hero", color:"#2e57c8", lv:1, hp:22, maxhp:22, mp:10, maxmp:10,
              atk:12, def:7, exp:0, down:false, weapon:null, armor:null,
              skills:[{name:"なぎはらい",mp:0,kind:"phys",mult:1.3,elem:"無"}],
              spells:[{name:"かえん",mp:3,kind:"mag",power:12,elem:"火"},{name:"いやし",mp:4,kind:"heal",power:20}],
@@ -370,20 +391,20 @@ function elemMult(elem,e){
 
 // 仲間テンプレート
 function makeMage(){   // 魔法使い：攻撃魔法（火・氷）
-  return { name:"マリン", role:"mage", color:"#8a4fc0", lv:3, hp:18, maxhp:18, mp:24, maxmp:24,
+  return { name:"マリン", role:"mage", job:"魔法使い", img:"mage", color:"#8a4fc0", lv:3, hp:18, maxhp:18, mp:24, maxmp:24,
            atk:8, def:5, exp:0, down:false, weapon:null, armor:null, skills:[],
            spells:[{name:"かえん",mp:4,kind:"mag",power:18,elem:"火"},
                    {name:"こおり",mp:5,kind:"mag",power:20,elem:"氷"},
                    {name:"いやし",mp:5,kind:"heal",power:18}] };
 }
 function makeWarrior(){ // 戦士：物理特技
-  return { name:"ガルド", role:"warrior", color:"#a05a2a", lv:3, hp:30, maxhp:30, mp:4, maxmp:4,
+  return { name:"ガルド", role:"warrior", job:"戦士", img:"warrior", color:"#a05a2a", lv:3, hp:30, maxhp:30, mp:4, maxmp:4,
            atk:16, def:9, exp:0, down:false, weapon:null, armor:null, spells:[],
            skills:[{name:"おおぎり",mp:0,kind:"phys",mult:1.8,elem:"無"},
                    {name:"みだれうち",mp:0,kind:"phys",mult:1.2,elem:"無"}] };
 }
-function makePriest(){  // 神父：回復・補助
-  return { name:"セラ", role:"priest", color:"#c8b86a", lv:3, hp:22, maxhp:22, mp:22, maxmp:22,
+function makePriest(){  // 修道女（シスター）：回復・補助
+  return { name:"セラ", role:"priest", job:"修道女", img:"sister", color:"#c8b86a", lv:3, hp:22, maxhp:22, mp:22, maxmp:22,
            atk:9, def:7, exp:0, down:false, weapon:null, armor:null, skills:[],
            spells:[{name:"いやし",mp:4,kind:"heal",power:24},
                    {name:"まもりのうた",mp:5,kind:"buffDef"},
@@ -679,7 +700,7 @@ function openService(b){
   service={ type:b.type, name:b.name, b:b, phase:"menu", labels:[], actions:[],
             cursor:0, msgs:[], msgIdx:0, shown:0, after:null, rects:[] };
   if(b.type==="inn")        svcMenu(["とまる ("+INN_COST+"G)","やめる"], [innStay, closeService]);
-  else if(b.type==="church")svcMenu(["いのる","やめる"], [churchPray, closeService]);
+  else if(b.type==="church")svcMenu(["いのる","そせい ("+REVIVE_COST+"G)","やめる"], [churchPray, churchRevive, closeService]);
   else if(b.type==="weapon")openWeaponShop();
   else if(b.type==="item")  openItemShop();
 }
@@ -708,17 +729,48 @@ function churchPray(){
   saveGame();
   svcMsg(["女神に いのりを ささげた。","ここが ふっかつの ちと なった。","HP・MPが かいふくした。"], closeService);
 }
+function churchRevive(){
+  const dead=party.filter(m=>m.down);
+  if(dead.length===0){ svcMsg(["たおれた なかまは いない ようだ。"], ()=>openService(service.b)); return; }
+  if(stats.gold<REVIVE_COST){ svcMsg(["おかねが たりない ようだ。"], ()=>openService(service.b)); return; }
+  stats.gold-=REVIVE_COST;
+  for(const m of dead){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; }
+  saveGame();
+  svcMsg(["女神に いのりを ささげた…", dead.map(m=>m.name).join("と")+"が よみがえった！"], closeService);
+}
 function openWeaponShop(){
-  const list=SHOP_WEAPON.concat(SHOP_ARMOR).slice().sort((a,b)=>a.price-b.price);
-  const labels=list.map(it=> it.name+" "+it.price+"G"); labels.push("やめる");
-  const actions=list.map(it=>()=>buyEquip(it)); actions.push(closeService);
+  // 今のパーティの誰かが装備できる物だけ並べる
+  const all=SHOP_WEAPON.concat(SHOP_ARMOR)
+    .filter(it=> party.some(m=> it.jobs.indexOf(m.role)>=0))
+    .sort((a,b)=>a.price-b.price);
+  const labels=all.map(it=>{
+    const tag=it.wtype||it.atype, val=(it.atk!==undefined?"攻+"+it.atk:"守+"+it.def);
+    return "【"+tag+"】"+it.name+" "+val+" "+it.price+"G";
+  });
+  labels.push("やめる");
+  const actions=all.map(it=>()=>buyEquip(it)); actions.push(closeService);
   svcMenu(labels, actions);
 }
 function buyEquip(it){
   if(stats.gold<it.price){ svcMsg(["おかねが たりない！"], openWeaponShop); return; }
+  const cand=party.filter(m=> it.jobs.indexOf(m.role)>=0);
+  if(cand.length===0){ svcMsg(["そうびできる なかまが いない。"], openWeaponShop); return; }
+  if(cand.length===1){ doEquip(it, cand[0]); return; }
+  // 装備者を選ぶ
+  const labels=cand.map(m=>{
+    const cur=(it.atk!==undefined? m.weapon : m.armor);
+    return m.name+"（今:"+(cur?cur.name:"なし")+"）";
+  });
+  labels.push("やめる");
+  const actions=cand.map(m=>()=>doEquip(it,m)); actions.push(openWeaponShop);
+  svcMsg(["だれに そうびする？"], ()=>svcMenu(labels, actions));
+}
+function doEquip(it, m){
+  if(stats.gold<it.price){ svcMsg(["おかねが たりない！"], openWeaponShop); return; }
   stats.gold-=it.price;
-  if(it.atk!==undefined) stats.weapon=it; else stats.armor=it;
-  svcMsg([it.name+"を そうびした！"], openWeaponShop);
+  if(it.atk!==undefined) m.weapon=it; else m.armor=it;
+  saveGame();
+  svcMsg([m.name+"は "+it.name+"を そうびした！"], openWeaponShop);
 }
 function openItemShop(){
   const list=SHOP_ITEM.slice().sort((a,b)=>a.price-b.price);
@@ -1050,16 +1102,27 @@ function drawSignIcon(type, cx, cy){
 }
 
 function drawHero(){
+  // 生成キャラ画像（正面固定）。歩行中は上下バウンドで動きを出す
+  const img=CHARIMG.hero;
+  if(img && img.complete && img.naturalWidth){
+    const dh=104, dw=Math.round(img.naturalWidth*dh/img.naturalHeight);
+    const bob=(player.walk && Math.floor(Date.now()/170)%2)? 5:0;
+    const dx=Math.round(player.x+player.size/2-dw/2);
+    const dy=Math.round(player.y+player.size-dh)+16-bob;
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(img, dx, dy, dw, dh);
+    return;
+  }
+  // フォールバック（旧ドット絵）
   const dir=player.dir;
   const set = dir==="up"?SPR.heroUp : dir==="left"?SPR.heroLeft
             : dir==="right"?SPR.heroRight : SPR.heroDown;
-  // 歩行中は[歩行A,歩行B]を交互に。止まると[立ち]
   let frame=0;
-  if(player.walk){ frame = (Math.floor(Date.now()/200)%2) ? 2 : 1; }  // 200ms毎に足を入れ替え
+  if(player.walk){ frame = (Math.floor(Date.now()/200)%2) ? 2 : 1; }
   const spr=set[frame];
-  const bob=(player.walk && Math.floor(Date.now()/200)%2)? CHAR:0;    // わずかな上下
+  const bob=(player.walk && Math.floor(Date.now()/200)%2)? CHAR:0;
   const dx=Math.round(player.x+player.size/2-spr.width/2);
-  const dy=Math.round(player.y+player.size-spr.height)+12-bob;        // 足を地面寄りに
+  const dy=Math.round(player.y+player.size-spr.height)+12-bob;
   ctx.drawImage(spr, dx, dy);
 }
 
@@ -1196,16 +1259,13 @@ function drawStatus(){
   const lx=x+36; let ly=y+86;
   for(const m of party){
     ctx.fillStyle = m===stats ? "#ffe9a8" : "#cfe0ff"; ctx.font="24px 'Hiragino Kaku Gothic ProN',sans-serif";
-    ctx.fillText(m.name+"  Lv"+m.lv, lx, ly); ly+=32;
+    ctx.fillText(m.name+(m.job&&m.job!==m.name?"  "+m.job:"")+"  Lv"+m.lv, lx, ly); ly+=32;
     ctx.font="20px monospace"; ctx.fillStyle="#fff";
     ctx.fillText("HP "+m.hp+"/"+m.maxhp+"   MP "+m.mp+"/"+m.maxmp, lx+16, ly); ly+=28;
     ctx.fillStyle="#9fb0d0";
-    ctx.fillText("ちから "+atkOf(m)+"   まもり "+defOf(m), lx+16, ly); ly+=30;
-    if(m===stats){
-      ctx.fillStyle="#bda0e0";
-      ctx.fillText("ぶき:"+(m.weapon?m.weapon.name:"なし")+"  よろい:"+(m.armor?m.armor.name:"なし"), lx+16, ly); ly+=30;
-    }
-    ly+=6;
+    ctx.fillText("ちから "+atkOf(m)+"   まもり "+defOf(m), lx+16, ly); ly+=28;
+    ctx.fillStyle="#bda0e0";
+    ctx.fillText("ぶき:"+(m.weapon?m.weapon.name:"なし")+"  よろい:"+(m.armor?m.armor.name:"なし"), lx+16, ly); ly+=32;
   }
   // 所持金・もちもの
   ctx.fillStyle="#ffd23f"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif";

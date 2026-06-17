@@ -1,6 +1,6 @@
 /*
-  MiniGame_Phase12_RPG.ino
-  Arduino UNO R4 WiFi - Web Game Server (Phase 12)
+  MazeGame.ino
+  Arduino UNO R4 WiFi - Web Game Server (Phase 12 / 迷路ゲーム・完成版)
 
   追加機能:
     - ステージ1〜3

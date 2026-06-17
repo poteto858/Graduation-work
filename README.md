@@ -7,7 +7,7 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 
 | フォルダ | 作品 | 内容 |
 |----------|------|------|
-| [`MiniGame_Phase12_RPG/`](MiniGame_Phase12_RPG/) | **迷路ゲーム** | 基礎を学ぶために最初に作った迷路ゲーム（完成） |
+| [`MazeGame/`](MazeGame/) | **迷路ゲーム** | 基礎を学ぶために最初に作った迷路ゲーム（完成） |
 | [`RPG_Quest/`](RPG_Quest/) | **RPG_Quest** | 迷路の仕組みを土台に発展させたドラクエ風RPG（開発中・メイン作品） |
 
 ---
@@ -52,7 +52,7 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 ## 共通セットアップ
 
 1. `arduino_secrets.h.example` を **`arduino_secrets.h`** にコピーし、自分のWi-Fi（2.4GHz帯）のSSID・パスワードを記入。
-2. 遊びたい作品のフォルダ（`MiniGame_Phase12_RPG/` または `RPG_Quest/`）を Arduino IDE で開き、`arduino_secrets.h` を同じフォルダに置く。
+2. 遊びたい作品のフォルダ（`MazeGame/` または `RPG_Quest/`）を Arduino IDE で開き、`arduino_secrets.h` を同じフォルダに置く。
 3. 書き込み後、シリアルモニタ（9600bps）に表示される IP に `http://<IP>/`（httpsではなくhttp）でアクセス。
 
 > `arduino_secrets.h`（実際のWi-Fi情報）は `.gitignore` で除外され、GitHubには公開されません。

@@ -1019,6 +1019,26 @@ function joyButton(){
 }
 setInterval(pollJoy,150);
 
+// ====== 内蔵12x8 LEDマトリクス用ミニマップ ======
+// 現在マップを12x8に縮小：出入口/建物=点灯、自分=点滅(Arduino側)。変化した時だけ送信。
+let _miniKey="", _miniBusy=false;
+function updateMinimap(){
+  if(!map.length) return;
+  const mw=map[0].length, mh=map.length, exits=(GAME_DATA[currentMap].exits)||{};
+  const f=[0,0,0];
+  const set=(col,row)=>{ col=col<0?0:col>11?11:col; row=row<0?0:row>7?7:row; const i=row*12+col; f[i>>5]|=(1<<(31-(i&31))); };
+  for(let y=0;y<mh;y++){ const r=map[y]; for(let x=0;x<mw;x++){ if(exits[r[x]]) set(Math.floor(x*12/mw), Math.floor(y*8/mh)); } }
+  for(const b of buildings){ set(Math.floor((b.x+1)*12/mw), Math.floor((b.y+1)*8/mh)); }   // 建物の入口
+  const ptx=Math.floor((player.x+player.size/2)/TILE), pty=Math.floor((player.y+player.size/2)/TILE);
+  let pcol=Math.floor(ptx*12/mw), prow=Math.floor(pty*8/mh);
+  pcol=pcol<0?0:pcol>11?11:pcol; prow=prow<0?0:prow>7?7:prow;
+  const pIdx=prow*12+pcol, a=f[0]>>>0, b2=f[1]>>>0, c=f[2]>>>0;
+  const key=currentMap+":"+pIdx+":"+a+","+b2+","+c;
+  if(key===_miniKey || _miniBusy) return;       // 変化なし/送信中はスキップ
+  _miniKey=key; _miniBusy=true;
+  fetch("/led?a="+a+"&b="+b2+"&c="+c+"&p="+pIdx,{cache:"no-store"}).catch(()=>{}).finally(()=>{ _miniBusy=false; });
+}
+
 // ====== 更新 ======
 function update(){
   if(encCooldown>0) encCooldown--;
@@ -1052,6 +1072,7 @@ function update(){
     // 草地を歩くとランダムエンカウント（安全マップ=街では出ない）
     const safe=GAME_DATA[currentMap].safe;
     if(!safe && (dx||dy) && encCooldown<=0 && onGrass() && Math.random()<0.004){ startBattle(); }
+    updateMinimap();   // 内蔵LEDマトリクスへミニマップ送信（変化時のみ）
   }
   if(mode==="battle") updateBattle();
   if(mode==="talk" && dialog.active){

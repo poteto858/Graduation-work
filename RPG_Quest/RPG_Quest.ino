@@ -18,6 +18,7 @@
 
 #include <WiFiS3.h>
 #include <Adafruit_NeoPixel.h>
+#include "Arduino_LED_Matrix.h"   // 本体内蔵 12x8 LEDマトリクス
 #include "arduino_secrets.h"
 
 char ssid[] = SECRET_SSID;
@@ -36,6 +37,26 @@ const int PIN_NEO = 6;
 const int NUM_LED = 8;
 Adafruit_NeoPixel strip(NUM_LED, PIN_NEO, NEO_GRB + NEO_KHZ800);
 unsigned long ledOffAt = 0;   // LEDを消す時刻(非ブロッキング)
+
+// ===== 本体内蔵 12x8 LEDマトリクス：ミニマップ =====
+// ブラウザが現在マップを12x8に縮小し「町/出入口」フレーム(96bit=3xuint32)＋「自分の位置(0..95)」を /led で送る。
+// 自分の位置の点滅はArduino側で自走（非ブロッキング）。
+ArduinoLEDMatrix matrix;
+uint32_t ledFrame[3] = {0,0,0};   // 町/出入口マーカー（点灯）
+int ledPlayer = -1;               // 自分の位置 0..95（点滅）。-1=非表示
+bool ledBlink = true;
+unsigned long ledBlinkAt = 0;
+bool ledMapOn = false;
+void renderMatrix(){
+  uint32_t f[3] = { ledFrame[0], ledFrame[1], ledFrame[2] };
+  if(ledPlayer>=0 && ledBlink){ int w=ledPlayer>>5; f[w] |= (1UL << (31-(ledPlayer&31))); }
+  matrix.loadFrame(f);
+}
+// クエリから符号なし32bit整数を取り出す（uint32はlongに収まらないので strtoul）
+uint32_t qU32(const String& p, const char* k){
+  int i=p.indexOf(k); if(i<0) return 0; i+=strlen(k);
+  return (uint32_t) strtoul(p.c_str()+i, nullptr, 10);
+}
 
 // LEDを指定色で光らせ、一定時間後に消す予約
 void ledFlash(uint8_t r, uint8_t g, uint8_t b, int ms){
@@ -74,6 +95,7 @@ void setup(){
   pinMode(PIN_SW, INPUT_PULLUP);
   pinMode(PIN_BUZZ, OUTPUT);
   strip.begin(); strip.show();   // 全消灯
+  matrix.begin();                // 内蔵LEDマトリクス開始
   while(WiFi.begin(ssid,pass)!=WL_CONNECTED){ delay(2000); Serial.println("Connecting..."); }
   Serial.println("Connected");
   while(WiFi.localIP()==IPAddress(0,0,0,0)){ delay(500); Serial.println("Waiting for IP..."); }
@@ -95,6 +117,8 @@ void loop(){
   serviceSeq();   // メロディを非ブロッキングで進める
   // LEDの自動消灯（非ブロッキング）
   if(ledOffAt && millis()>ledOffAt){ strip.clear(); strip.show(); ledOffAt=0; }
+  // ミニマップの自分の位置を点滅（非ブロッキング）
+  if(ledMapOn && millis()-ledBlinkAt>350){ ledBlinkAt=millis(); ledBlink=!ledBlink; renderMatrix(); }
 
   WiFiClient client=server.available();
   if(client){
@@ -125,6 +149,11 @@ void loop(){
       int q=path.indexOf("s=");
       String s = q>=0 ? path.substring(q+2) : "";
       playFx(s);
+      sendShort(client, "ok");
+    }
+    else if(path.startsWith("/led")){
+      ledFrame[0]=qU32(path,"a="); ledFrame[1]=qU32(path,"b="); ledFrame[2]=qU32(path,"c=");
+      ledPlayer=(int)qU32(path,"p="); ledMapOn=true; ledBlink=true; renderMatrix();
       sendShort(client, "ok");
     }
     else{

@@ -161,7 +161,15 @@ void loop(){
       client.println("Content-Type: text/html; charset=UTF-8");
       client.println("Connection: close");
       client.println();
-      client.print(page);
+      // ページ全体を確実に送る。write()は一度に全部送れない（約90KB）ので、
+      // 送れた分だけ進めて残りをループ送信する。これをしないとHTMLが途中で切れてゲームが起動しない。
+      size_t len = strlen(page), off = 0; unsigned long t0 = millis();
+      while(off < len && client.connected()){
+        size_t n = client.write((const uint8_t*)(page + off), len - off);
+        if(n > 0){ off += n; t0 = millis(); }
+        else { if(millis() - t0 > 3000) break; delay(1); }   // 3秒進まなければ打ち切り
+      }
+      client.flush();
       client.stop();
     }
   }

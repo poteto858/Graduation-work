@@ -204,18 +204,18 @@ const GAME_DATA={
       "RRRRRRRRRRRRRRRR"],
     npcs:[]
   },
-  // 洞窟を抜けた先のエリア（魔物が出る）。B=洞窟へ戻る / G=奥の町 / D=魔王城への道
+  // 洞窟を抜けた先のエリア（魔物が出る）。B=洞窟へ戻る / G=奥の町(家あり) / D=魔王城への道
   area2:{
     safe:false,
-    exits:{ "B":{to:"cave", tx:7, ty:1}, "G":{to:"town2", tx:8, ty:11}, "D":{to:"road", tx:8, ty:13} },
+    exits:{ "B":{to:"cave", tx:7, ty:1}, "G":{to:"town2", tx:7, ty:20}, "D":{to:"road", tx:8, ty:13} },
     map:[
       "TTTTTTTTTTDTTTTTTTTT",
       "T..................T",
       "T..................T",
-      "T.....TT...........T",
-      "T.....TT...........T",
+      "T...HHHH...........T",
+      "T...HHHH...........T",
+      "T....G.............T",
       "T..................T",
-      "T...G..............T",
       "T..................T",
       "T............TT....T",
       "T............TT....T",
@@ -225,18 +225,7 @@ const GAME_DATA={
       "T..................T",
       "TTTTTTTTTBTTTTTTTTTT",
       "TTTTTTTTTTTTTTTTTTTT"],
-    npcs:[
-      { x:7, y:6, name:"旅人", color:"#5a8a6a",
-        lines:[
-          "西の とりでが この さきの 街だ。",
-          "そうびを ととのえて いくと いい。"
-        ] },
-      { x:11, y:11, name:"見はりの兵", color:"#8a6a3a",
-        lines:[
-          "北の 道は 魔王城へ つづいている。",
-          "道には 魔物が うようよ いる。きをつけろ！"
-        ] }
-    ]
+    npcs:[]
   },
   // 街（魔物が出ない・安全）。G=フィールドへの出口。建物は buildings で配置
   town:{
@@ -278,41 +267,63 @@ const GAME_DATA={
         ] }
     ]
   },
-  // 奥の町（エリアの中・安全）。G=エリアへ戻る
+  // 奥の町（縦長・レンガ舗装・中央通り・左右対称）。G=エリアへ戻る。最奥中央に大聖堂(セラ加入)、その手前に大噴水
+  // 装飾: f=大噴水(2x2) l=街灯 o=花壇。入口(下)→中央通り→噴水を回り込んで大聖堂へ
   town2:{
-    safe:true,
-    exits:{ "G":{to:"area2", tx:4, ty:7} },
+    safe:true, theme:"town2",
+    exits:{ "G":{to:"area2", tx:5, ty:6} },
     map:[
-      "TTTTTTTTTTTTTTTTTT",
-      "T................T",
-      "T................T",
-      "T................T",
-      "T................T",
-      "T................T",
-      "T................T",
-      "T................T",
-      "T................T",
-      "T................T",
-      "T................T",
-      "T................T",
-      "TTTTTTTTGGTTTTTTTT",
-      "TTTTTTTTTTTTTTTTTT"],
+      "TTTTTTTTTTTTTT",
+      "T............T",
+      "T............T",
+      "T............T",
+      "T............T",
+      "T............T",
+      "T...l....l...T",
+      "T.....ff.....T",
+      "T.....ff.....T",
+      "T...o....o...T",
+      "T............T",
+      "T............T",
+      "T............T",
+      "T...l....l...T",
+      "T............T",
+      "T............T",
+      "T...o....o...T",
+      "T............T",
+      "T............T",
+      "T............T",
+      "T...l....l...T",
+      "TTTTTTGGTTTTTT"],
     buildings:[
-      { type:"inn",    x:2,  y:2, name:"やどや",   color:"#c06a3a" },
-      { type:"weapon", x:11, y:2, name:"ぶきや",   color:"#8a8f9a" },
-      { type:"item",   x:2,  y:6, name:"どうぐや", color:"#5a9a5a" },
-      { type:"church", x:11, y:6, name:"だいきょうかい", color:"#e6dcc0" }
+      { type:"cathedral", x:4,  y:3,  w:5, h:3, name:"だいせいどう", color:"#d8d2c0" },  // 大聖堂（最奥中央・セラ加入）
+      { type:"inn",    x:1,  y:10, name:"やどや",   color:"#c89a5a", roof:"#7a4a2a" },
+      { type:"weapon", x:10, y:10, name:"ぶきや",   color:"#9aa0aa", roof:"#4a5560" },
+      { type:"item",   x:1,  y:14, name:"どうぐや", color:"#6aa06a", roof:"#3a6a3a" },
+      { type:"house",  x:10, y:14, deco:true, color:"#b08a5a", roof:"#6a4a2a" },
+      { type:"house",  x:1,  y:18, deco:true, color:"#9a7a8a", roof:"#5a3a4a" },
+      { type:"house",  x:10, y:18, deco:true, color:"#8a9a7a", roof:"#4a5a3a" }
     ],
     npcs:[
-      { x:7, y:9, name:"町の人", color:"#6a6ab0",
+      { x:5, y:11, name:"町の人", color:"#6a6ab0",
         lines:[
-          "北の はずれに 魔王の城が そびえている。",
-          "あの 黒い 城こそ 諸悪の 根源さ。"
+          "この 大聖堂には シスターさまが おられる。",
+          "女神の おしえを まもる やさしい かただ。"
         ] },
-      { x:9, y:5, name:"旅の戦士", color:"#9a6a3a",
+      { x:8, y:11, name:"旅の戦士", color:"#9a6a3a",
         lines:[
           "城へ 行く前に そうびを 整えな。",
-          "教会で 蘇生も できるから 覚えておきな。"
+          "宿屋で 休めば HPも MPも 回復するぞ。"
+        ] },
+      { x:8, y:16, name:"旅人", color:"#5a8a6a",
+        lines:[
+          "ここは 魔王城に いちばん 近い 町さ。",
+          "じゅうぶん 準備して いくと いい。"
+        ] },
+      { x:5, y:16, name:"見はりの兵", color:"#8a6a3a",
+        lines:[
+          "北の 道は 魔王城へ つづいている。",
+          "道には 魔物が うようよ いる。きをつけろ！"
         ] }
     ]
   },
@@ -339,26 +350,26 @@ const GAME_DATA={
       "RRRRRRRRRRRRRRRRRR"],
     npcs:[]
   },
-  // 魔王城（最奥・暗い・魔物は出ない）。G=道へ戻る / Z=玉座(魔王イベント)
-  // ※専用の城タイルは今後追加予定。今は岩タイル流用＋暗闇で雰囲気付け
+  // 魔王城（最奥・魔物は出ない）。G=道へ戻る / Z=玉座(魔王イベント) / c=赤絨毯
+  // theme:"castle" で石床・煉瓦壁・赤絨毯・玉座を描画
   castle:{
-    safe:true, dark:true,
+    safe:true, dark:true, theme:"castle",
     exits:{ "G":{to:"road", tx:8, ty:1} },
     map:[
       "RRRRRRRRRRRRRRRRRR",
       "R................R",
       "R...R...Z....R...R",
-      "R................R",
-      "R................R",
-      "R....R......R....R",
-      "R................R",
-      "R................R",
-      "R...R........R...R",
-      "R................R",
-      "R................R",
-      "R....R......R....R",
-      "R................R",
-      "R................R",
+      "R.......c........R",
+      "R.......c........R",
+      "R....R..c...R....R",
+      "R.......c........R",
+      "R.......c........R",
+      "R...R...c....R...R",
+      "R.......c........R",
+      "R.......c........R",
+      "R....R..c...R....R",
+      "R.......c........R",
+      "R.......c........R",
       "RRRRRRRRGGRRRRRRRR",
       "RRRRRRRRRRRRRRRRRR"],
     npcs:[]
@@ -410,9 +421,10 @@ const REVIVE_COST=50;   // 教会での蘇生
 // ====== 状態 ======
 let mode="field";          // "field" | "talk" | "battle" | "status" | "service"
 let darkArea=false;
+let mapTheme="";           // ""=通常 / "castle"=魔王城（石床・煉瓦壁・赤絨毯・玉座）
 let currentMap="field";
 let buildings=[];
-const TILE_WALL={ "T":1, "W":1, "R":1, "H":1, "d":1 };  // 通れないタイル
+const TILE_WALL={ "T":1, "W":1, "R":1, "H":1, "d":1, "f":1, "l":1, "s":1, "o":1 };  // 通れないタイル（f噴水 l街灯 o花壇 s像）
 let map=[], npcs=[];
 let player={x:0,y:0,size:52,dir:"down",walk:0};
 let cameraX=0, cameraY=0;
@@ -476,7 +488,7 @@ const SPELLS=[{name:"かえん",mp:3},{name:"いやし",mp:4},{name:"もどる",
 let service=null;
 
 // ストーリーフラグ（イベント1回判定など）
-let flags={ mageRescued:false, maohDefeated:false };
+let flags={ mageRescued:false, seraJoined:false, maohDefeated:false };
 
 let keys={};
 
@@ -487,6 +499,7 @@ function loadMap(name, sx, sy){
   map=m.map;
   buildings=(m.buildings||[]);
   darkArea=!!m.dark;
+  mapTheme=m.theme||"";
   npcs=(m.npcs||[]).map(n=>({...n}));
   npcs.forEach(n=>{
     n.spr = n.kind==="elder" ? makeSprite(ELDER, ELDER_PAL, CHAR)
@@ -503,17 +516,25 @@ function loadMap(name, sx, sy){
 function loadField(){ loadMap("field"); }
 
 // 建物の足元当たり判定（ドア以外は壁）。ドア=(x+1, y+1)
+// 建物のドア位置（装飾建物 deco はドア無し＝全部壁）。サイズは w×h（既定3×2）
+function buildingDoor(b){
+  if(b.deco) return null;
+  const w=b.w||3, h=b.h||2;
+  return { dx: b.x + (w>>1), dy: b.y + (h-1) };
+}
 function buildingWall(tx,ty){
   for(const b of buildings){
-    if(tx>=b.x && tx<b.x+3 && ty>=b.y && ty<b.y+2){
-      if(tx===b.x+1 && ty===b.y+1) return false;  // ドアは通れる
+    const w=b.w||3, h=b.h||2;
+    if(tx>=b.x && tx<b.x+w && ty>=b.y && ty<b.y+h){
+      const d=buildingDoor(b);
+      if(d && tx===d.dx && ty===d.dy) return false;  // ドアは通れる
       return true;
     }
   }
   return false;
 }
 function doorAt(tx,ty){
-  for(const b of buildings) if(tx===b.x+1 && ty===b.y+1) return b;
+  for(const b of buildings){ const d=buildingDoor(b); if(d && tx===d.dx && ty===d.dy) return b; }
   return null;
 }
 
@@ -747,6 +768,21 @@ function eventRescueMage(){
     });
   });
 }
+// 大聖堂：シスター セラ が仲間に（戦闘なし・会話のみ）
+function eventRecruitSera(){
+  mode="field";
+  showScene([
+    "大聖堂は しずかな ひかりに つつまれている……",
+    "シスター「あなたが 勇者さま ですね。",
+    "　わたくし セラ。女神の おみちびきで まいりました。",
+    "　どうか おともを させてください。」",
+    "セラが なかまに くわわった！"
+  ], ()=>{
+    flags.seraJoined=true;
+    if(!party.some(m=>m.role==="priest")) recruit(makePriest());   // 二重加入ガード
+    saveGame();
+  });
+}
 // 魔王城の玉座（Zタイル）：会話イベント → 魔王戦
 function eventMaohBattle(){
   showScene([
@@ -774,7 +810,7 @@ function openService(b){
   service={ type:b.type, name:b.name, b:b, phase:"menu", labels:[], actions:[],
             cursor:0, msgs:[], msgIdx:0, shown:0, after:null, rects:[] };
   if(b.type==="inn")        svcMenu(["とまる ("+INN_COST+"G)","やめる"], [innStay, closeService]);
-  else if(b.type==="church")svcMenu(["いのる","そせい ("+REVIVE_COST+"G)","やめる"], [churchPray, churchRevive, closeService]);
+  else if(b.type==="church"||b.type==="cathedral")svcMenu(["いのる","そせい ("+REVIVE_COST+"G)","やめる"], [churchPray, churchRevive, closeService]);
   else if(b.type==="weapon")openWeaponShop();
   else if(b.type==="item")  openItemShop();
 }
@@ -1068,7 +1104,9 @@ function update(){
     if((dx||dy) && tile==="E" && !flags.mageRescued){ eventRescueMage(); return; }
     if((dx||dy) && tile==="Z" && !flags.maohDefeated){ eventMaohBattle(); return; }
     // 施設のドアに入ると施設メニュー
-    if((dx||dy)){ const b=doorAt(ptx,pty); if(b){ openService(b); return; } }
+    if((dx||dy)){ const b=doorAt(ptx,pty); if(b){
+      if(b.type==="cathedral" && !flags.seraJoined){ eventRecruitSera(); return; }   // 大聖堂で初回はセラ加入
+      openService(b); return; } }
     // 草地を歩くとランダムエンカウント（安全マップ=街では出ない）
     const safe=GAME_DATA[currentMap].safe;
     if(!safe && (dx||dy) && encCooldown<=0 && onGrass() && Math.random()<0.004){ startBattle(); }
@@ -1096,13 +1134,122 @@ function roundRect(x,y,w,h,r){
 // タイル座標から安定した擬似乱数（草の模様を固定するため）
 function hash(x,y){ let h=(x*374761393+y*668265263)>>>0; h=(h^(h>>13))*1274126177>>>0; return (h>>>0)/4294967296; }
 
+// ===== 魔王城テーマの描画 =====
+function drawCastleFloor(gx,gy,x,y){
+  ctx.fillStyle=((x+y)&1)?"#272336":"#211e2e";        // 市松の暗い石床
+  ctx.fillRect(gx,gy,TILE,TILE);
+  ctx.fillStyle="#17141f";                            // 目地
+  ctx.fillRect(gx,gy+TILE-2,TILE,2); ctx.fillRect(gx+TILE-2,gy,2,TILE);
+  ctx.fillStyle="rgba(150,140,180,0.05)"; ctx.fillRect(gx,gy,TILE,3);
+}
+function drawCastleWall(gx,gy){
+  ctx.fillStyle="#3c3850"; ctx.fillRect(gx,gy,TILE,TILE);        // 石壁ベース
+  ctx.fillStyle="#2a2740";
+  for(let r=0;r<TILE;r+=20) ctx.fillRect(gx,gy+r,TILE,2);        // 横目地
+  for(let r=0;r<TILE;r+=20){ const off=((r/20)&1)?TILE/2:0;      // 縦目地（段ごとにずらす）
+    ctx.fillRect(gx+off,gy+r,2,20); ctx.fillRect(gx+((off+TILE/2)%TILE),gy+r,2,20); }
+  ctx.fillStyle="#4c4866"; ctx.fillRect(gx,gy,TILE,5);           // 上面ハイライト
+  ctx.fillStyle="#1d1a2c"; ctx.fillRect(gx,gy+TILE-4,TILE,4);    // 下の影
+}
+// ===== 奥の町（レンガ舗装＋装飾）の描画 =====
+function drawTownPave(gx,gy,x,y){
+  ctx.fillStyle=((x+y)&1)?"#c2a47a":"#b69566";        // 2色レンガ（市松）
+  ctx.fillRect(gx,gy,TILE,TILE);
+  ctx.fillStyle="#9c8156";                            // 目地
+  for(let r=0;r<=TILE;r+=TILE/2) ctx.fillRect(gx,gy+r-1,TILE,2);
+  for(let r=0;r<=TILE;r+=TILE/2) ctx.fillRect(gx+r-1,gy,2,TILE);
+  ctx.fillStyle="rgba(255,245,220,0.06)"; ctx.fillRect(gx,gy,TILE,3);   // ほのかな艶
+}
+function drawFountain(gx,gy){
+  const cx=gx+TILE/2, cy=gy+TILE/2;
+  ctx.fillStyle="rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(cx,gy+TILE-8,TILE*0.4,7,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="#9a9aa6"; ctx.beginPath(); ctx.arc(cx,cy,TILE*0.42,0,Math.PI*2); ctx.fill();   // 石の基壇
+  ctx.fillStyle="#7c7c8a"; ctx.beginPath(); ctx.arc(cx,cy,TILE*0.42,0,Math.PI*2); ctx.lineWidth=4; ctx.stroke();
+  ctx.fillStyle="#3f8bcf"; ctx.beginPath(); ctx.arc(cx,cy,TILE*0.30,0,Math.PI*2); ctx.fill();   // 水
+  ctx.fillStyle="#6fb6ef"; ctx.beginPath(); ctx.arc(cx-6,cy-4,TILE*0.12,0,Math.PI*2); ctx.fill();// 水面の光
+  ctx.fillStyle="#9a9aa6"; ctx.fillRect(cx-4,cy-16,8,18);                                        // 中央柱
+  const t=Math.sin(Date.now()*0.006)*2;
+  ctx.fillStyle="#bfe3ff"; ctx.fillRect(cx-2,cy-22+t,4,8);                                        // 噴き上がる水
+}
+function drawLamp(gx,gy){
+  const cx=gx+TILE/2;
+  ctx.fillStyle="rgba(0,0,0,0.16)"; ctx.beginPath(); ctx.ellipse(cx,gy+TILE-6,12,5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="#2c2c36"; ctx.fillRect(cx-9,gy+TILE-10,18,6);     // 台座
+  ctx.fillStyle="#3a3a46"; ctx.fillRect(cx-3,gy+18,6,TILE-26);     // 支柱
+  ctx.fillStyle="#4a4a58"; ctx.fillRect(cx-8,gy+8,16,14);          // ランプ枠
+  ctx.fillStyle="#ffe08a"; ctx.fillRect(cx-5,gy+11,10,9);          // 灯り
+  ctx.fillStyle="rgba(255,220,140,0.22)"; ctx.beginPath(); ctx.arc(cx,gy+15,17,0,Math.PI*2); ctx.fill();  // 光
+}
+// 大噴水（2×2タイル）。町2マップで f を2×2に並べると、その右下タイルから一括描画される
+function drawBigFountain(ax,ay){
+  const S=TILE*2, cx=ax+S/2, cy=ay+S/2, t=Math.sin(Date.now()*0.006)*4;
+  ctx.fillStyle="rgba(0,0,0,0.20)"; ctx.beginPath(); ctx.ellipse(cx,ay+S-16,S*0.40,13,0,0,Math.PI*2); ctx.fill();   // 影
+  ctx.fillStyle="#b3b5c0"; ctx.beginPath(); ctx.arc(cx,cy,S*0.43,0,Math.PI*2); ctx.fill();                          // 石の外縁
+  ctx.strokeStyle="#8a8c98"; ctx.lineWidth=7; ctx.beginPath(); ctx.arc(cx,cy,S*0.43,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle="#3f8bcf"; ctx.beginPath(); ctx.arc(cx,cy,S*0.34,0,Math.PI*2); ctx.fill();                          // 外周プールの水
+  ctx.strokeStyle="#5aa6e6"; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(cx,cy,S*0.34,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle="rgba(200,235,255,0.45)"; ctx.beginPath(); ctx.ellipse(cx-S*0.10,cy-S*0.07,S*0.11,S*0.045,0,0,Math.PI*2); ctx.fill(); // 水面の反射
+  ctx.fillStyle="#9a9ca8"; ctx.fillRect(cx-9,cy-S*0.20,18,S*0.26);                                                  // 中央の石柱
+  ctx.fillStyle="#b3b5c0"; ctx.beginPath(); ctx.ellipse(cx,cy-S*0.07,S*0.17,S*0.055,0,0,Math.PI*2); ctx.fill();     // 上段の皿
+  ctx.fillStyle="#3f8bcf"; ctx.beginPath(); ctx.ellipse(cx,cy-S*0.08,S*0.12,S*0.035,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="#cfeeff"; ctx.fillRect(cx-3,cy-S*0.34+t,6,S*0.20);                                                 // 噴き上がる水
+  ctx.fillStyle="rgba(200,235,255,0.85)";
+  for(let i=0;i<7;i++){ const a=Date.now()*0.004+i*0.9; ctx.beginPath(); ctx.arc(cx+Math.cos(a)*S*0.13, cy-S*0.15+Math.sin(a*1.4)*5, 3, 0, Math.PI*2); ctx.fill(); }   // 飛沫
+}
+function drawFlowers(gx,gy,x,y){
+  const m=7, bw=TILE-2*m, by=gy+TILE-34;
+  ctx.fillStyle="rgba(0,0,0,0.16)"; ctx.fillRect(gx+m,by+30,bw,6);            // 影
+  ctx.fillStyle="#c2bba8"; ctx.fillRect(gx+m-2,by-2,bw+4,34);                 // 明るい石枠（はっきり）
+  ctx.fillStyle="#5a3a22"; ctx.fillRect(gx+m,by,bw,30);                       // 土
+  ctx.fillStyle="#6e4a2a"; ctx.fillRect(gx+m,by,bw,5);
+  const cols=["#ff5a6e","#ffd23f","#f06ad0","#5ad0f0","#ff8a3a"];
+  for(let i=0;i<5;i++){
+    const fx=gx+m+9+i*((bw-18)/4), fy=by+18;
+    ctx.fillStyle="#2f8a3a"; ctx.fillRect(fx-1,fy-2,3,11);                    // 茎
+    ctx.fillStyle="#3aa84a"; ctx.fillRect(fx-5,fy+3,4,3); ctx.fillRect(fx+2,fy+1,4,3);  // 葉
+    ctx.fillStyle=cols[(x*3+y+i)%cols.length];
+    ctx.beginPath(); ctx.arc(fx, fy-5, 6, 0, Math.PI*2); ctx.fill();          // 花（大きめ）
+    ctx.fillStyle="#fff6c0"; ctx.beginPath(); ctx.arc(fx, fy-5, 2, 0, Math.PI*2); ctx.fill();  // 花芯
+  }
+}
+function drawCarpet(gx,gy){
+  ctx.fillStyle="#6e1626"; ctx.fillRect(gx+TILE*0.16,gy,TILE*0.68,TILE);        // 赤絨毯
+  ctx.fillStyle="#8c2236"; ctx.fillRect(gx+TILE*0.16,gy,4,TILE); ctx.fillRect(gx+TILE*0.84-4,gy,4,TILE);
+  ctx.fillStyle="#caa24a"; ctx.fillRect(gx+TILE*0.16+6,gy,2,TILE); ctx.fillRect(gx+TILE*0.84-8,gy,2,TILE); // 金の縁取り
+}
+function drawThrone(gx,gy){
+  ctx.fillStyle="#2a1730";                                       // 背もたれ
+  ctx.fillRect(gx+TILE*0.26,gy+TILE*0.04,TILE*0.48,TILE*0.62);
+  ctx.beginPath(); ctx.moveTo(gx+TILE*0.26,gy+TILE*0.14); ctx.lineTo(gx+TILE*0.18,gy-TILE*0.06); ctx.lineTo(gx+TILE*0.36,gy+TILE*0.08); ctx.closePath(); ctx.fill(); // 左の尖塔
+  ctx.beginPath(); ctx.moveTo(gx+TILE*0.74,gy+TILE*0.14); ctx.lineTo(gx+TILE*0.82,gy-TILE*0.06); ctx.lineTo(gx+TILE*0.64,gy+TILE*0.08); ctx.closePath(); ctx.fill(); // 右の尖塔
+  ctx.fillStyle="#caa24a";                                       // 金の縁
+  ctx.fillRect(gx+TILE*0.26,gy+TILE*0.04,TILE*0.48,4);
+  ctx.fillRect(gx+TILE*0.26,gy+TILE*0.04,4,TILE*0.62); ctx.fillRect(gx+TILE*0.74-4,gy+TILE*0.04,4,TILE*0.62);
+  ctx.fillStyle="#7a1020"; ctx.fillRect(gx+TILE*0.32,gy+TILE*0.16,TILE*0.36,TILE*0.34);   // 赤クッション
+  ctx.fillStyle="#3a2238"; ctx.fillRect(gx+TILE*0.22,gy+TILE*0.58,TILE*0.56,TILE*0.18);   // 座面
+  ctx.fillStyle="#caa24a"; ctx.fillRect(gx+TILE*0.22,gy+TILE*0.58,TILE*0.56,3);
+}
+
 function drawTile(c,x,y){
   const gx=x*TILE, gy=y*TILE;
   if(c==="W"){ ctx.drawImage(SPR.water[Math.floor(Date.now()/350)%2], gx, gy); return; }
-  // 床ベース（暗いエリア=石畳 / 通常=草地）
-  ctx.drawImage((darkArea?SPR.stone:SPR.grass)[(x+y)&1], gx, gy);
+  const castle = mapTheme==="castle";
+  const town=mapTheme==="town2";
+  // 床ベース（城=石床 / 奥の町=レンガ舗装 / 暗いエリア=石畳 / 通常=草地）
+  if(castle) drawCastleFloor(gx,gy,x,y);
+  else if(town) drawTownPave(gx,gy,x,y);
+  else ctx.drawImage((darkArea?SPR.stone:SPR.grass)[(x+y)&1], gx, gy);
+  if(castle && c==="c"){ drawCarpet(gx,gy); return; }
+  if(castle && c==="Z"){ drawCarpet(gx,gy); drawThrone(gx,gy); return; }
+  if(town){
+    // f を2×2に並べた大噴水。右下タイル（描画順で最後）で一括描画し、他3タイルは舗装のみ
+    if(c==="f"){ if(map[y-1]&&map[y-1][x]==="f"&&map[y][x-1]==="f"){ drawBigFountain(gx-TILE,gy-TILE); } return; }
+    if(c==="l"){ drawLamp(gx,gy); return; }
+    if(c==="o"){ drawFlowers(gx,gy,x,y); return; }
+  }
   if(c==="R"){
-    if(darkArea){ // 洞窟の岩壁（岩肌・ひび・陰影）
+    if(castle){ drawCastleWall(gx,gy); }
+    else if(darkArea){ // 洞窟の岩壁（岩肌・ひび・陰影）
       ctx.fillStyle="#2b2833"; ctx.fillRect(gx,gy,TILE,TILE);
       ctx.fillStyle="#3a3648"; ctx.fillRect(gx,gy,TILE,7);            // 上の明るい縁
       ctx.fillStyle="#161420"; ctx.fillRect(gx,gy+TILE-9,TILE,9);     // 下の影
@@ -1157,30 +1304,53 @@ function drawTile(c,x,y){
 // 街の建物（大きめ・3タイル幅×2.5タイル高）。種類で看板を変える
 function drawBuildings(){
   for(const b of buildings){
-    const x=b.x*TILE, y=(b.y-1)*TILE, w=3*TILE, h=3*TILE;  // 上に1タイル分ぼ屋根
-    // 影
-    ctx.fillStyle="rgba(0,0,0,0.18)"; ctx.fillRect(x+8,y+h-6,w-16,8);
-    // 壁
-    ctx.fillStyle=b.color; ctx.fillRect(x+6,y+h*0.42,w-12,h*0.58);
+    if(b.type==="cathedral"){ drawCathedral(b); continue; }   // 大聖堂は専用描画
+    const w=(b.w||3)*TILE, x=b.x*TILE, y=(b.y-1)*TILE, h=3*TILE;
+    ctx.fillStyle="rgba(0,0,0,0.18)"; ctx.fillRect(x+8,y+h-6,w-16,8);          // 影
+    ctx.fillStyle=b.color; ctx.fillRect(x+6,y+h*0.42,w-12,h*0.58);             // 壁
     ctx.fillStyle="rgba(0,0,0,0.12)"; ctx.fillRect(x+6,y+h*0.42,12,h*0.58);
-    // 屋根
-    ctx.fillStyle="#7a2f2f"; ctx.beginPath();
+    ctx.fillStyle=b.roof||"#7a2f2f"; ctx.beginPath();                         // 屋根
     ctx.moveTo(x,y+h*0.46); ctx.lineTo(x+w/2,y+8); ctx.lineTo(x+w,y+h*0.46); ctx.closePath(); ctx.fill();
-    ctx.fillStyle="#5e2222"; ctx.fillRect(x,y+h*0.43,w,8);
-    // ドア（下中央）
-    const dw=44, dx=x+w/2-dw/2, dy=y+h-78;
+    ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.fillRect(x,y+h*0.43,w,8);
+    const dw=44, dx=x+w/2-dw/2, dy=y+h-78;                                     // ドア
     ctx.fillStyle="#3a2410"; ctx.fillRect(dx,dy,dw,78);
-    ctx.fillStyle="#ffd23f"; ctx.beginPath(); ctx.arc(dx+dw-10,dy+40,3,0,Math.PI*2); ctx.fill();
-    // 看板（アイコンで分かりやすく）
-    const sx=x+w/2-30, sy=y+h*0.49, sw=60, sh=44;
-    ctx.fillStyle="#efe6cf"; roundRect(sx,sy,sw,sh,5); ctx.fill();
-    ctx.strokeStyle="#5e2222"; ctx.lineWidth=2.5; roundRect(sx,sy,sw,sh,5); ctx.stroke();
-    drawSignIcon(b.type, x+w/2, sy+sh/2);
-    // 教会は屋根に十字
+    if(!b.deco){ ctx.fillStyle="#ffd23f"; ctx.beginPath(); ctx.arc(dx+dw-10,dy+40,3,0,Math.PI*2); ctx.fill(); }
+    if(!b.deco){                                                              // 看板（機能建物のみ）
+      const sx=x+w/2-30, sy=y+h*0.49, sw=60, sh=44;
+      ctx.fillStyle="#efe6cf"; roundRect(sx,sy,sw,sh,5); ctx.fill();
+      ctx.strokeStyle="#5e2222"; ctx.lineWidth=2.5; roundRect(sx,sy,sw,sh,5); ctx.stroke();
+      drawSignIcon(b.type, x+w/2, sy+sh/2);
+    }
     if(b.type==="church"){ ctx.strokeStyle="#ffe9a8"; ctx.lineWidth=4; ctx.lineCap="round";
       ctx.beginPath(); ctx.moveTo(x+w/2,y+12); ctx.lineTo(x+w/2,y+h*0.4); ctx.moveTo(x+w/2-12,y+h*0.18); ctx.lineTo(x+w/2+12,y+h*0.18); ctx.stroke(); }
     ctx.textAlign="left";
   }
+}
+// 大聖堂（大きい教会・5×3）。明るい石・尖塔・十字・バラ窓・アーチ大扉
+function drawCathedral(b){
+  const x=b.x*TILE, w=5*TILE, footTop=b.y*TILE, footBot=(b.y+3)*TILE, fh=footBot-footTop, yTop=(b.y-2)*TILE;
+  ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.fillRect(x+10,footBot-6,w-20,10);             // 影
+  ctx.fillStyle="#d8d2c0"; ctx.fillRect(x+8,footTop+fh*0.30,w-16,fh*0.70);            // 本体
+  ctx.fillStyle="rgba(0,0,0,0.10)"; ctx.fillRect(x+8,footTop+fh*0.30,14,fh*0.70);
+  ctx.fillStyle="#6e8a9a"; ctx.beginPath();                                           // 側廊の屋根
+  ctx.moveTo(x+2,footTop+fh*0.40); ctx.lineTo(x+w*0.5,footTop-fh*0.05); ctx.lineTo(x+w-2,footTop+fh*0.40); ctx.closePath(); ctx.fill();
+  const tw=TILE*1.5, tx=x+w/2-tw/2;                                                   // 中央の塔
+  ctx.fillStyle="#cfc8b4"; ctx.fillRect(tx, yTop+TILE*0.9, tw, (footTop+fh*0.45)-(yTop+TILE*0.9));
+  ctx.fillStyle="rgba(0,0,0,0.10)"; ctx.fillRect(tx, yTop+TILE*0.9, 12, (footTop+fh*0.45)-(yTop+TILE*0.9));
+  ctx.fillStyle="#5e7a8a"; ctx.beginPath();                                           // 塔の屋根
+  ctx.moveTo(tx-8, yTop+TILE*0.95); ctx.lineTo(x+w/2, yTop); ctx.lineTo(tx+tw+8, yTop+TILE*0.95); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle="#ffe9a8"; ctx.lineWidth=5; ctx.lineCap="round";                    // 十字
+  ctx.beginPath(); ctx.moveTo(x+w/2, yTop-TILE*0.55); ctx.lineTo(x+w/2, yTop-2);
+  ctx.moveTo(x+w/2-13, yTop-TILE*0.38); ctx.lineTo(x+w/2+13, yTop-TILE*0.38); ctx.stroke();
+  ctx.fillStyle="#3a5a8a"; ctx.beginPath(); ctx.arc(x+w/2, footTop+fh*0.18, 17, 0, Math.PI*2); ctx.fill();  // バラ窓
+  ctx.strokeStyle="#caa24a"; ctx.lineWidth=3; ctx.stroke();
+  ctx.fillStyle="#1d2e48";                                                            // 側面の窓
+  for(const wx of [x+w*0.18, x+w*0.82-16]) ctx.fillRect(wx, footTop+fh*0.5, 16, 30);
+  const dw=60, dxp=x+w/2-dw/2, dyt=footBot-96;                                         // アーチ大扉
+  ctx.fillStyle="#4a3018"; ctx.beginPath();
+  ctx.moveTo(dxp, footBot-6); ctx.lineTo(dxp, dyt+28); ctx.arc(x+w/2, dyt+28, dw/2, Math.PI, 0); ctx.lineTo(dxp+dw, footBot-6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle="#caa24a"; ctx.lineWidth=3; ctx.stroke();
+  ctx.fillStyle="#caa24a"; ctx.fillRect(x+w/2-2, dyt+10, 4, footBot-6-(dyt+10));       // 扉の縦桟
 }
 // 施設アイコン（宿=ベッド/武器=剣/道具=ビン/教会=十字）
 function drawSignIcon(type, cx, cy){
@@ -1395,10 +1565,11 @@ function draw(){
   for(const n of npcs) drawNpc(n);
   drawHero();
   ctx.restore();
-  // 周辺減光は暗いエリアのみ（通常エリアは明るいクラシックな見た目）
+  // 周辺減光は暗いエリアのみ（城は松明照明風に軽め＆紫、洞窟は濃い闇）
   if(darkArea){
     const vg=ctx.createRadialGradient(VIEW/2,VIEW/2,VIEW*0.25,VIEW/2,VIEW/2,VIEW*0.7);
-    vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(8,4,18,0.72)");
+    vg.addColorStop(0,"rgba(0,0,0,0)");
+    vg.addColorStop(1, mapTheme==="castle" ? "rgba(22,6,32,0.5)" : "rgba(8,4,18,0.72)");
     ctx.fillStyle=vg; ctx.fillRect(0,0,VIEW,VIEW);
   }
   if(mode==="talk" && dialog.active) drawDialog();

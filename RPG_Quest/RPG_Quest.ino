@@ -157,17 +157,20 @@ void loop(){
       sendShort(client, "ok");
     }
     else{
+      // ページ(約115KB)を確実に送る。WiFiS3のwrite()は大きい一括送信で詰まり
+      // 画面が真っ白/ぐるぐるになる。そこで【1KBずつ小さく刻んで】送り切る。
+      // Content-Lengthでブラウザに総バイト数を伝え、取りこぼし/途中切れを防ぐ。
+      size_t len = strlen(page), off = 0; unsigned long t0 = millis();
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/html; charset=UTF-8");
+      client.println("Content-Length: " + String((unsigned long)len));
       client.println("Connection: close");
       client.println();
-      // ページ全体を確実に送る。write()は一度に全部送れない（約90KB）ので、
-      // 送れた分だけ進めて残りをループ送信する。これをしないとHTMLが途中で切れてゲームが起動しない。
-      size_t len = strlen(page), off = 0; unsigned long t0 = millis();
       while(off < len && client.connected()){
-        size_t n = client.write((const uint8_t*)(page + off), len - off);
+        size_t chunk = len - off; if(chunk > 1024) chunk = 1024;   // 1KBずつ
+        size_t n = client.write((const uint8_t*)(page + off), chunk);
         if(n > 0){ off += n; t0 = millis(); }
-        else { if(millis() - t0 > 3000) break; delay(1); }   // 3秒進まなければ打ち切り
+        else { if(millis() - t0 > 5000) break; delay(1); }   // 5秒進まなければ打ち切り
       }
       client.flush();
       client.stop();

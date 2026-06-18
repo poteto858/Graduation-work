@@ -296,7 +296,8 @@ const GAME_DATA={
       "T...l....l...T",
       "TTTTTTGGTTTTTT"],
     buildings:[
-      { type:"cathedral", x:4,  y:3,  w:5, h:3, name:"だいせいどう", color:"#d8d2c0" },  // 大聖堂（最奥中央・セラ加入）
+      { type:"cathedral", x:4,  y:3,  w:6, h:3, name:"だいせいどう", color:"#d8d2c0" },  // 大聖堂（最奥中央・セラ加入）。w:6で町の中央軸(噴水・通り)と一直線
+
       { type:"inn",    x:1,  y:10, name:"やどや",   color:"#c89a5a", roof:"#7a4a2a" },
       { type:"weapon", x:10, y:10, name:"ぶきや",   color:"#9aa0aa", roof:"#4a5560" },
       { type:"item",   x:1,  y:14, name:"どうぐや", color:"#6aa06a", roof:"#3a6a3a" },
@@ -676,7 +677,7 @@ function castAction(m,a){
     const wk=elemMult(a.elem,e);
     const d=Math.max(1, Math.floor((a.power+m.lv*2)*wk*(0.85+Math.random()*0.3)));
     e.hp-=d; b.flash=10; fx("hit");
-    const tag = wk>1?" よわてん！" : (wk<1?" きいていない…":"");
+    const tag = wk>1?" じゃくてん！" : (wk<1?" きいていない…":"");
     queueMsg([m.name+"は "+a.name+"を となえた！", e.name+"に "+d+"の ダメージ！"+tag], afterActorAction);
   }else if(a.kind==="heal"){     // 回復（自分）
     const h=a.power+Math.floor(Math.random()*8); m.hp=Math.min(m.maxhp,m.hp+h); fx("heal");
@@ -1328,7 +1329,7 @@ function drawBuildings(){
 }
 // 大聖堂（大きい教会・5×3）。明るい石・尖塔・十字・バラ窓・アーチ大扉
 function drawCathedral(b){
-  const x=b.x*TILE, w=5*TILE, footTop=b.y*TILE, footBot=(b.y+3)*TILE, fh=footBot-footTop, yTop=(b.y-2)*TILE;
+  const x=b.x*TILE, w=(b.w||5)*TILE, footTop=b.y*TILE, footBot=(b.y+3)*TILE, fh=footBot-footTop, yTop=(b.y-2)*TILE;
   ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.fillRect(x+10,footBot-6,w-20,10);             // 影
   ctx.fillStyle="#d8d2c0"; ctx.fillRect(x+8,footTop+fh*0.30,w-16,fh*0.70);            // 本体
   ctx.fillStyle="rgba(0,0,0,0.10)"; ctx.fillRect(x+8,footTop+fh*0.30,14,fh*0.70);

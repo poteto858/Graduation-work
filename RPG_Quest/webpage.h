@@ -904,9 +904,14 @@ function loadGame(){
     if(s&&s.party&&s.party.length){ party=s.party; stats=party[0];
       // 旧セーブ互換：欠落フィールドを補完
       for(const m of party){ if(m.buffAtkT===undefined)m.buffAtkT=0; if(m.buffDefT===undefined)m.buffDefT=0;
-                             if(m.skills===undefined)m.skills=[]; if(m.spells===undefined)m.spells=[]; }
+                             if(m.skills===undefined)m.skills=[]; if(m.spells===undefined)m.spells=[];
+                             if(!m.img)m.img=({hero:"hero",mage:"mage",warrior:"warrior",priest:"sister"})[m.role]||"hero"; }  // 画像キー補完(img導入前のセーブ対策)
       if(stats.gold===undefined)stats.gold=0; if(stats.herb===undefined)stats.herb=0; if(stats.elixir===undefined)stats.elixir=0;
-      if(s.respawn) respawn=s.respawn; if(s.flags) Object.assign(flags, s.flags); return true; }
+      if(s.respawn) respawn=s.respawn; if(s.flags) Object.assign(flags, s.flags);
+      // 不整合セーブの自己修復：加入フラグが立っているのに仲間が居なければ入れ直す（過去版の名残対策）
+      if(flags.mageRescued && !party.some(m=>m.role==="mage"))   recruit(makeMage());
+      if(flags.seraJoined  && !party.some(m=>m.role==="priest")) recruit(makePriest());
+      return true; }
   }catch(e){} return false;
 }
 
@@ -1432,7 +1437,8 @@ function drawParty(){
   const fol=party.slice(1);
   for(let i=0;i<fol.length;i++){
     const t=followerSpot(i);
-    list.push({key:fol[i].img, dir:t.dir, x:t.x, y:t.y, walk:player.walk, hero:false});
+    const key=fol[i].img || ({hero:"hero",mage:"mage",warrior:"warrior",priest:"sister"})[fol[i].role] || "hero";  // imgが無くても職業から補う
+    list.push({key, dir:t.dir, x:t.x, y:t.y, walk:player.walk, hero:false});
   }
   list.sort((a,b)=>a.y-b.y);   // 上(奥)から手前へ
   for(const c of list){ if(!drawCharImg(c.key,c.dir,c.x,c.y,c.walk) && c.hero) drawHeroFallback(); }

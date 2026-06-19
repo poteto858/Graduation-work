@@ -89,6 +89,7 @@ void playFx(const String& s){
 }
 
 #include "webpage.h"
+#include "maps.h"      // /maps.json で配信するマップデータ（webpage.h から分離）
 
 void setup(){
   Serial.begin(9600);
@@ -155,6 +156,32 @@ void loop(){
       ledFrame[0]=qU32(path,"a="); ledFrame[1]=qU32(path,"b="); ledFrame[2]=qU32(path,"c=");
       ledPlayer=(int)qU32(path,"p="); ledMapOn=true; ledBlink=true; renderMatrix();
       sendShort(client, "ok");
+    }
+    else if(path.startsWith("/favicon.ico")){
+      // faviconは持たない。空応答(204)で即返す。
+      // これをしないと未知パス扱いで120KBのページを返してしまい、起動時の/maps.json取得を妨げる。
+      client.println("HTTP/1.1 204 No Content");
+      client.println("Connection: close");
+      client.println();
+      client.stop();
+    }
+    else if(path.startsWith("/maps.json")){
+      // マップデータ(JSON)を配信。ブラウザは起動時に1回だけ取得する。
+      // page と同様、WiFiS3が詰まらないよう【1KBずつ刻んで】送り、Content-Lengthで総量を伝える。
+      size_t len = strlen(MAPS_JSON), off = 0; unsigned long t0 = millis();
+      client.println("HTTP/1.1 200 OK");
+      client.println("Content-Type: application/json; charset=UTF-8");
+      client.println("Content-Length: " + String((unsigned long)len));
+      client.println("Connection: close");
+      client.println();
+      while(off < len && client.connected()){
+        size_t chunk = len - off; if(chunk > 1024) chunk = 1024;
+        size_t n = client.write((const uint8_t*)(MAPS_JSON + off), chunk);
+        if(n > 0){ off += n; t0 = millis(); }
+        else { if(millis() - t0 > 5000) break; delay(1); }
+      }
+      client.flush();
+      client.stop();
     }
     else{
       // ページ(約115KB)を確実に送る。WiFiS3のwrite()は大きい一括送信で詰まり

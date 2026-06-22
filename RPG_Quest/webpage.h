@@ -437,7 +437,7 @@ let map=[], npcs=[];
 let player={x:0,y:0,size:52,dir:"down",walk:0};
 let cameraX=0, cameraY=0;
 let trail=[];                 // 勇者の足跡 {x,y,dir}。仲間が後ろを追従する
-const FOLLOW_GAP=26;          // 仲間どうしの間隔（足跡の何個ぶん後ろか）
+const FOLLOW_GAP=32;          // 仲間どうしの間隔（足跡の何個ぶん後ろか＝32×3=96px。縦移動で重なりすぎないよう絵の高さ寄り）
 let respawn={ map:"town", tx:9, ty:11 };   // 教会で更新するリスポーン地点
 
 // 会話状態
@@ -454,6 +454,7 @@ let party=[{ name:"勇者", role:"hero", job:"勇者", img:"hero", color:"#2e57c
              spells:[{name:"かえん",mp:3,kind:"mag",power:12,elem:"火"},{name:"いやし",mp:4,kind:"heal",power:20}],
              gold:0, herb:3, elixir:0, buffAtkT:0, buffDefT:0 }];
 let stats=party[0];
+const HERO_KIT={ skills: party[0].skills, spells: party[0].spells };   // 勇者の固定の特技/呪文（セーブ復元用）
 function atkOf(m){ let a=m.atk+(m.weapon?m.weapon.atk:0); if(m.buffAtkT>0)a=Math.floor(a*1.4); return a; }
 function defOf(m){ let d=m.def+(m.armor?m.armor.def:0); if(m.buffDefT>0)d=Math.floor(d*1.5); return d; }
 function aliveMembers(){ return party.filter(m=>!m.down); }
@@ -941,7 +942,9 @@ function loadGame(){
     if(s&&s.party&&s.party.length){ party=s.party; stats=party[0];
       // 旧セーブ互換：欠落フィールドを補完
       for(const m of party){ if(m.buffAtkT===undefined)m.buffAtkT=0; if(m.buffDefT===undefined)m.buffDefT=0;
-                             if(m.skills===undefined)m.skills=[]; if(m.spells===undefined)m.spells=[];
+                             // 特技/呪文は役割ごとに固定 → セーブの値に頼らず最新テンプレから常に復元（古いセーブで空でも直る）
+                             const kit = m.role==="mage"?makeMage() : m.role==="warrior"?makeWarrior() : m.role==="priest"?makePriest() : HERO_KIT;
+                             m.skills=kit.skills; m.spells=kit.spells;
                              if(!m.img)m.img=({hero:"hero",mage:"mage",warrior:"warrior",priest:"sister"})[m.role]||"hero"; }  // 画像キー補完(img導入前のセーブ対策)
       if(stats.gold===undefined)stats.gold=0; if(stats.herb===undefined)stats.herb=0; if(stats.elixir===undefined)stats.elixir=0;
       if(s.respawn) respawn=s.respawn; if(s.flags) Object.assign(flags, s.flags);
@@ -1154,10 +1157,17 @@ function update(){
     // 洞窟の救出イベント（一度だけ）
     if((dx||dy) && tile==="E" && !flags.mageRescued){ eventRescueMage(); return; }
     if((dx||dy) && tile==="Z" && !flags.maohDefeated){ eventMaohBattle(); return; }
-    // 施設のドアに入ると施設メニュー
-    if((dx||dy)){ const b=doorAt(ptx,pty); if(b){
-      if(b.type==="cathedral" && !flags.seraJoined){ eventRecruitSera(); return; }   // 大聖堂で初回はセラ加入
-      openService(b); return; } }
+    // 施設のドア：乗った瞬間だけ反応（同じドア上で立ち止まっても再発火しない＝ドアから出られなくなる不具合の修正）
+    if((dx||dy)){
+      const b=doorAt(ptx,pty);
+      if(b){
+        if(!player._onDoor){
+          player._onDoor=true;
+          if(b.type==="cathedral" && !flags.seraJoined){ eventRecruitSera(); return; }   // 大聖堂で初回はセラ加入
+          openService(b); return;
+        }
+      }else{ player._onDoor=false; }
+    }
     // 草地を歩くとランダムエンカウント（安全マップ=街では出ない）
     const safe=MAPS[currentMap].safe;
     if(!safe && (dx||dy) && encCooldown<=0 && onGrass() && Math.random()<0.004){ startBattle(); }
@@ -1426,13 +1436,35 @@ function drawSignIcon(type, cx, cy){
 // 方向→画像キー（d=正面 u=背面 r=右 l=左）
 function dirKey(d){ return d==="up"?"u" : d==="left"?"l" : d==="right"?"r" : "d"; }
 // キャラ画像をワールド座標(wx,wy)へ4方向で描く。描けたら true
+// スプライトの「足元の横中心」を測ってキャッシュ。左右非対称な絵(斧など)でも本体を中央そろえできる。
+const _footFracCache=new WeakMap();
+function footFrac(img){
+  if(_footFracCache.has(img)) return _footFracCache.get(img);
+  let f=0.5;
+  try{
+    const w=img.naturalWidth, h=img.naturalHeight;
+    const oc=document.createElement('canvas'); oc.width=w; oc.height=h;
+    const o=oc.getContext('2d',{willReadFrequently:true}); o.drawImage(img,0,0);
+    const d=o.getImageData(0,0,w,h).data;
+    const op=(x,y)=>d[(y*w+x)*4+3]>=128;
+    let by0=-1,by1=-1;
+    for(let y=0;y<h;y++){ for(let x=0;x<w;x++){ if(op(x,y)){ if(by0<0)by0=y; by1=y; break; } } }
+    if(by1>=0){
+      const band=Math.max(1,Math.round((by1-by0+1)*0.15)), ylo=by1-band+1;
+      let sum=0,cnt=0;
+      for(let y=ylo;y<=by1;y++) for(let x=0;x<w;x++) if(op(x,y)){ sum+=x; cnt++; }
+      if(cnt) f=(sum/cnt)/w;
+    }
+  }catch(e){}
+  _footFracCache.set(img,f); return f;
+}
 function drawCharImg(imgKey, dir, wx, wy, walk){
   const set=CHARIMG[imgKey];
   const img=set && (set[dirKey(dir)] || set.d);
   if(img && img.complete && img.naturalWidth){
     const dh=104, dw=Math.round(img.naturalWidth*dh/img.naturalHeight);
     const bob=(walk && Math.floor(Date.now()/200)%2)? 5:0;
-    const dx=Math.round(wx+player.size/2-dw/2);
+    const dx=Math.round(wx+player.size/2-footFrac(img)*dw);   // 足元の中心で揃える（斧などの非対称対策）
     const dy=Math.round(wy+player.size-dh)+16-bob;
     ctx.imageSmoothingEnabled=false;
     ctx.drawImage(img, dx, dy, dw, dh);
@@ -1446,7 +1478,7 @@ function drawCharPortrait(imgKey, cx, topY, ph){
   if(img && img.complete && img.naturalWidth){
     const pw=Math.round(img.naturalWidth*ph/img.naturalHeight);
     ctx.imageSmoothingEnabled=false;
-    ctx.drawImage(img, Math.round(cx-pw/2), Math.round(topY), pw, ph);
+    ctx.drawImage(img, Math.round(cx-footFrac(img)*pw), Math.round(topY), pw, ph);   // 足元の中心で揃える
   }
 }
 // 画像未ロード時の勇者フォールバック（旧ドット絵）
@@ -1544,27 +1576,28 @@ function drawBattle(){
   let g=ctx.createLinearGradient(0,0,0,VIEW);
   g.addColorStop(0,"#0b0b1c"); g.addColorStop(0.55,"#15152e"); g.addColorStop(1,"#05050c");
   ctx.fillStyle=g; ctx.fillRect(0,0,VIEW,VIEW);
-  ctx.fillStyle="#1c1838"; ctx.fillRect(0,VIEW*0.50,VIEW,3);
-  // 敵
+  // 上：パーティ枠（横長バナー・全員を列で。DQ風に敵と分離して重ならない）
+  const _n=party.length, _bw=VIEW-40, _bh=96, _col=(_bw-24)/_n;
+  winBox(20,20,_bw,_bh);
+  ctx.textAlign="left";
+  for(let i=0;i<_n;i++){
+    const m=party[i], cx=32+i*_col;
+    ctx.font="19px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.fillStyle=m.down?"#777":"#fff";
+    let nm=m.name; if(m.buffAtkT>0)nm+=" 攻↑"; if(m.buffDefT>0)nm+=" 守↑";
+    ctx.fillText(nm, cx, 48);
+    ctx.font="15px monospace";
+    ctx.fillStyle=m.down?"#777":(m.hp<=m.maxhp*0.25?"#ff6a6a":"#cfe0ff"); ctx.fillText("HP "+m.hp+"/"+m.maxhp, cx, 74);
+    ctx.fillStyle=m.down?"#777":"#9fd0ff"; ctx.fillText("MP "+m.mp+"/"+m.maxmp, cx, 98);
+  }
+  // 敵（バナーの下〜下部ウィンドウの間の中央。枠と重ならない）
   const ew=SPR[b.enemy.spr].width*2, float=Math.sin(Date.now()*0.003)*7;   // 原画を2倍で綺麗に（中ボス128px→256pxで一回り大きい）
   const shakeX=b.shake>0?(Math.random()-0.5)*b.shake:0;
-  const ex=VIEW/2-ew/2+shakeX, ey=VIEW*0.16-(ew-192)/2+float;
+  const _top=20+_bh, _bot=VIEW-240;
+  const ex=VIEW/2-ew/2+shakeX, ey=_top+((_bot-_top)-ew)/2+float;
+  ctx.fillStyle="#1c1838"; ctx.fillRect(0, Math.round(ey+ew+6), VIEW, 3);   // 敵の足元の地面ライン
   if(!(b.flash>0 && Math.floor(Date.now()/60)%2)) ctx.drawImage(SPR[b.enemy.spr], ex, ey, ew, ew);
-  ctx.fillStyle="#fff"; ctx.font="22px sans-serif"; ctx.textAlign="center";
-  ctx.fillText(b.enemy.name, VIEW/2, ey+ew+30); ctx.textAlign="left";   // 名前は敵の下（左上のパーティ枠と重ならない）
-  // パーティ状態（左上・全員）
-  winBox(20,20,380,24+party.length*40);
-  ctx.textAlign="left"; let yy=50;
-  for(const m of party){
-    ctx.font="20px sans-serif"; ctx.fillStyle=m.down?"#777":"#fff"; ctx.fillText(m.name,38,yy);
-    ctx.font="16px monospace";
-    ctx.fillStyle=m.down?"#777":(m.hp<=m.maxhp*0.25?"#ff6a6a":"#cfe0ff"); ctx.fillText("HP"+m.hp+"/"+m.maxhp,150,yy);
-    ctx.fillStyle=m.down?"#777":"#9fd0ff"; ctx.fillText("MP"+m.mp,265,yy);
-    ctx.font="15px sans-serif";
-    if(m.buffAtkT>0){ ctx.fillStyle="#ff9a4a"; ctx.fillText("攻↑",318,yy); }
-    if(m.buffDefT>0){ ctx.fillStyle="#6ad0ff"; ctx.fillText("守↑",352,yy); }
-    yy+=40;
-  }
+  ctx.fillStyle="#fff"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="center";
+  ctx.fillText(b.enemy.name, VIEW/2, ey+ew+34); ctx.textAlign="left";
   // プレイヤー被弾フラッシュ
   if(b.shakeP>0 && Math.floor(Date.now()/50)%2){ ctx.fillStyle="rgba(200,30,30,0.18)"; ctx.fillRect(0,0,VIEW,VIEW); }
   // 下部ウィンドウ

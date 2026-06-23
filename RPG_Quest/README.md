@@ -6,7 +6,7 @@ Arduino UNO R4 WiFi を **Webサーバー**にして、PC・スマホのブラ�
 ゲーム本体（描画・ロジック）はブラウザ側の JavaScript（Canvas）。Arduino は HTML/データを配信し、ジョイスティック値を返し、ブザー・LED・内蔵LEDマトリクスを制御します。
 
 <p align="center">
-  <img src="報告画像/fig2_party.png" width="420" alt="フィールドを仲間と歩く">
+  <img src="報告画像/gameplay.gif" width="440" alt="プレイの様子：仲間と隊列でフィールドを歩く">
 </p>
 
 ---

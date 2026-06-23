@@ -71,210 +71,7 @@ const BONE=["........................","......yXy......yXy......","....XiiiiiiII
 const SLIME_PAL={'.':null,X:'#0a1428',L:'#bfe0ff',l:'#5fa8f8',b:'#2f7fe0',d:'#1f53b0',w:'#ffffff',e:'#0e2244',m:'#163a78'};
 const BAT_PAL={'.':null,X:'#160a26',p:'#6a3aa0',P:'#8a5ac0',d:'#3f2068',r:'#ff4632',w:'#ffffff'};
 const BONE_PAL={'.':null,X:'#10121a',i:'#4a5470',I:'#6a7490',y:'#d9b24a',W:'#e8ecf2',w:'#9298a4',d:'#2a2e38',r:'#ff4632',t:'#c8ccd4',a:'#d2d7df',A:'#7a818c',s:'#7a4a22',S:'#a87a3a',o:'#3a2410'};
-// ===== 強敵・中ボスのドット絵（_enemy_preview.html で視覚確認済み） =====
-// ===== クサレビト rotcorpse（腐肉ゾンビ・前傾・片腕白骨） =====
-const ROT=[
-"........................",
-"..........XXXX..........",
-".........XgggggX........",
-"........XgGGGGGgX.......",
-"........XgGyGGyGX.......",   // 目(黄)
-"........XgGGmGGGX.......",   // 口
-".........XgGGGGX........",
-"....XX....XgggX.........",
-"...XbbX..XgggggX........",   // 左:白骨腕
-"...XBbbXXgvvvvvgX.......",
-"....XBbXggvVVVvggX......",   // 腹(裂け/内臓)
-".....XXXggvVpVvggX......",
-"........ggvVVVvggX......",
-"........XgggggggX.......",
-".........XgggggX.......",
-".........Xg...gX........",
-".........Xg...gX........",
-"........Xgg...ggX.......",
-"........XGg...gGX.......",
-".......XGGX...XGGX......",
-"......XGGGX...XGGGX.....",
-"......XGGX.....XGGX.....",
-".......XX.......XX......",
-"........................"];
-const ROT_PAL={'.':null,X:'#1a2410',g:'#6f8a46',G:'#4a5e2c',y:'#ffe34a',m:'#241a10',b:'#e6e0c2',B:'#b0a988',v:'#5a1a2a',V:'#7a2438',p:'#c050a0'};
-
-// ===== ヒトダマギ soulflame（青白い火の玉・尾） =====
-const SOUL=[
-"........................",
-"..............ww........",
-".............wWWw.......",
-"............wWWWWw......",
-"...........wWWWWWWw.....",
-"..........wWWWcccWWw....",   // 中心の暗い瞳
-"..........wWWccccWWw....",
-"..........wWWWcccWWw....",
-"..........lWWWWWWWWl....",
-"..........lWWWWWWWWl....",
-"...........lWWWWWWl.....",
-"............lWWWWl......",
-".............lWWl.......",
-"......l.......ll........",
-".....l.l......l.l.......",   // 火の粉の尾
-"....l...l....l...l......",
-".....l.l......l.l.......",
-"......l........l........",
-".......l......l.........",
-"........l....l..........",
-".........l..l...........",
-"..........ll............",
-"........................",
-"........................"];
-const SOUL_PAL={'.':null,w:'#1a3a78',W:'#bfe0ff',l:'#5fa8f8',c:'#0e2244'};
-
-// ===== ハカモリグモ gravespider（墓場の大グモ・8脚・赤い目） =====
-const SPIDER=[
-"........................",
-"...l................l...",
-"....l..............l....",
-".....ll....XX....ll.....",   // 上脚
-"...XXXllXXXXXXXllXXX....",
-"..X..XXXbbbbbbbbXXX..X..",   // 甲羅=墓石
-".l..XXXbbsssssbbbXXX..l.",
-"l..XXbbsssssssssbbXXX..l",
-"..XXbbssGGGGGGGGssbbXX..",
-".XXbssGGrGrGrGrGGGssbXX.",   // 赤い複眼
-".XbssGGGGGGGGGGGGGGssbX.",
-".XbsGGGGGGGGGGGGGGGGsbX.",
-"..XssGGGGGwwwwGGGGGssX..",   // 口元の糸
-"...XXssGGGwwwwGGGssXX...",
-"l...XXXssGGGGGGssXXX...l",
-".l...l.XXXssssXXX.l...l.",
-"..l..l....XXXX....l..l..",
-"...l.l...l....l...l.l...",   // 下脚
-"....ll..l......l..ll....",
-".....l.l........l.l.....",
-"......ll..........ll....",
-".......l............l...",
-"........................",
-"........................"];
-const SPIDER_PAL={'.':null,X:'#140d08',b:'#3a281a',s:'#8a8a78',G:'#241810',g:'#3a2a1a',r:'#ff2a20',w:'#9aa0a8',l:'#241810'};
-
-// ===== ザンギル斬兵 greatswordsoldier（黒鎧・橙縁・赤熱大剣） =====
-const ZAN=[
-"........................",
-".................SS.....",   // 剣先
-"......XXXX......SRRS.....",
-".....XaaaaX....SRRRS.....",
-"....XaooooaX..SRRRRS.....",   // 兜(橙縁)
-"....XaoYYoaX.SRRRRS......",   // 黄の隻眼
-"....XaooooaX.SRRRS.......",
-".....XaaaaX.SRRRS........",
-"......XaaX.SRRRS.........",
-"....XXXXXXXRRRSX.........",
-"...XaaaaaaaRRSaaX........",   // 肩〜剣の柄
-"..XaooooooaSSaooaX.......",
-"..XaoAAAAoaXXaoAAoX......",   // 胸
-"..XaoAAAAoaX.XaoAoX......",
-"...XaooooaX...XaaaX......",
-"....XaaaaX.....XXX.......",
-"....XaaaaX..............",
-"...XaaXaaX..............",   // 脚
-"...XaaXaaX..............",
-"...XaaXaaX..............",
-"..XXXX XXXX.............",
-"..XXX...XXX.............",
-"........................",
-"........................"];
-const ZAN_PAL={'.':null,X:'#15161c',a:'#3a3d44',o:'#c86a2a',Y:'#ffd23d',A:'#4a4e58',S:'#7a2418',R:'#d24420',' ':null};
-
-// ===== ガオウレオン infernolion（炎のたてがみで咆哮する獅子） =====
-const LION=[
-"....m...m....m...m......",   // たてがみの炎先
-"...mMm.mMm..mMm.mMm.....",
-"..mMMMmMMMmmMMMmMMMm....",
-"...mMMMMMMMMMMMMMMMm....",   // たてがみリング(上)
-"..mMMh.........h.MMm....",   // 角
-".mMMhhLLLLLLLLhhMMm.....",
-".mMLLLLLLLLLLLLLLLLMm...",
-".mMLLLgGLLLLLLgGLLLMm...",   // 金の目
-".mMLLLgGLLLLLLgGLLLMm...",
-".mMLLLLLLnnnnLLLLLLMm...",   // 鼻
-".mMMLLLLnNNNnLLLLLMMm...",
-"..mMLLLfFwwwwFfLLLMm....",   // 牙のある口
-"..mMMLfFwwwwwwFfLMMm....",
-"...mMMMLwwwwwwLMMMm.....",   // 顎・たてがみ(下)
-"....mMMMMMMMMMMMMm......",
-".....LLLLLLLLLLLL.......",   // 胸
-"....LLLLLLLLLLLLLL......",
-"...cLLLLLLLLLLLLLLc.....",
-"...cLLc.LLLLLL.cLLc.....",   // 前脚
-"...cLc..LLLLLL..cLc.....",
-"...WW...LLLLLL...WW.....",   // 爪
-"........LLLLLL..........",
-"........................",
-"........................"];
-const LION_PAL={'.':null,m:'#7a2c0e',M:'#ef7a24',h:'#241006',L:'#b0582c',g:'#ffd450',G:'#caa020',n:'#241006',N:'#3a1c0a',f:'#7a3818',F:'#f0e0c0',w:'#3a160a',W:'#e8e0d0',c:'#8a4422'};
-
-// ===== ノクスナイト darkknight（黒紫鎧・氷の長剣・盾） =====
-const NOX=[
-"........................",
-".......XXXXXX...........",
-"......XaappaaX..........",   // 王冠角
-".....XaapPPpaaX.........",
-".....XaaPPPPaaX.iii.....",   // 兜
-".....XaaiIIiaaX.iII.....",   // 氷青の目
-".....XaaaaaaaaX..iI.....",
-"......XaaaaaaX...iI.....",   // 剣
-"....XXXaaaaXXX..iIi.....",
-"...XppaaaaaappX.iIi.....",
-"..XpPPaaAAaaPPpXiIi.....",   // マント+胸
-"..XpPPaAAAAaPPpXiIi.....",
-"..XpPaaAAAAaaPpX.I......",
-"...XpaaAAAAaaPX..I......",
-"...DXaaaooaaaXD..I......",   // 盾(左)/腰
-"..DDDXaaXXaaX...........",
-"..DSDXaaXXaaX...........",   // 盾紋章
-"..DDDXaaXXaaX...........",
-"....XaaX.XaaX...........",   // 脚
-"....XaaX.XaaX...........",
-"...XXXX...XXXX..........",
-"...XXX.....XXX..........",
-"........................",
-"........................"];
-const NOX_PAL={'.':null,X:'#0f0f18',a:'#23233a',A:'#33335a',p:'#3a2560',P:'#5b3a8c',i:'#46d8ff',I:'#a9e4ff',D:'#1a1a2e',S:'#caa24a'};
-
-// ===== ゲヘナ将 hellgeneral（32px・黒紫重装甲・金装飾・紫炎・戦鎚） =====
-const GEHE=[
-"................................",
-".....f......XXXXXX......f.......",   // 兜の二本角＋紫炎
-"....ff.....XaaGGaaX....ff.......",
-"...fPf....XaGGGGGGaX...fPf......",
-"...fPf...XaGppppppGaX..fPf......",   // スリットから紫炎
-"....f....XapPPPPPPpaX...f.......",
-".........XapPCCCCPpaX...........",   // 燃える紫の目
-".........XapPCCCCPpaX...........",
-".........XaapPPPPpaaX...........",
-".......GGXaaaaaaaaaaXGG.........",   // 肩(金エポーレット)
-"......GGGXaaAAAAAAaaXGGG........",
-".....GGGaaaAAGGAAaaaGGG.........",
-"......GaapPAAGGAAPpaaG..........",   // 胸(金装飾)
-".......XapPAAAAAAPpaX...........",
-".......XaapPPPPPPpaaX.....h.....",   // 戦鎚の柄(右)
-".......XaaapPPPPpaaaX....hHh....",
-"........XaaaaaaaaaaX....hHHHh...",   // 戦鎚の頭(紫炎)
-"........XaaaPPPPaaaX...hHPPHh...",
-"........XaapPPPPpaaX...hHPPHh...",
-"........XaPP.  .PPaX....hHHh....",
-".......XaaP.    .PaaX....hh.....",
-".......XaaX.    .XaaX...........",
-"......XaaX.      .XaaX..........",   // 腰〜脚
-"......XaaX........XaaX..........",
-".....XaaX..........XaaX.........",
-".....XaaX..........XaaX.........",
-"....XXaaX..........XaaXX........",
-"....XXXX............XXXX........",
-"....fXX..............XXf........",   // 足元の紫炎
-"...ff..................ff.......",
-"..f......................f......",
-"................................"];
-const GEHE_PAL={'.':null,X:'#160e22',a:'#2b1a3d',A:'#3d2856',p:'#6a2db0',P:'#9b3df2',C:'#c77dff',G:'#d9a528',g:'#a87a18',f:'#7a1ad0',h:'#3a2a18',H:'#c050ff',' ':null};
+// 強敵・中ボスは画像(ENEMYIMG)に置き換え済み（_embed_enemies.py が 敵素材/ から生成）
 
 // ===== パレット（暗めの世界観） =====
 const HERO_PAL={'.':null,X:'#16182a',i:'#3a5a9e',I:'#6f9fe0',y:'#f0cc3a',s:'#f0c290',t:'#c89060',r:'#46d8ff',u:'#2e57c8',U:'#4f7ce8',b:'#1c356e',k:'#22407a',c:'#c0c6d2',C:'#8a93a6',o:'#d9b24a',a:'#e6ebf5',A:'#8a93a6'};
@@ -335,6 +132,8 @@ function makeWater(frame){
   return c;
 }
 
+const ENEMYIMG={};
+(function(){const E={"rotcorpse":"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","soulflame":"iVBORw0KGgoAAAANSUhEUgAAAC4AAABQCAMAAABRT7e0AAAAY1BMVEX+//78/f36/PPT+P3L8fu18/yO6/uE3vxq2f2Zqt2If89g0fxUt/w9jPVrYslUVtFFUNhEOLoybPQzWfQ1PtgzKLcravkqX/YoTOQoM9onJ707FLYMCjgAAMYAAQAAAAAAAABUW/+0AAAAIXRSTlP//////////////////////////////////////////wCfwdAhAAAER0lEQVR42u1X23LiOhCU8U3EFl5JlnUJZfj/r9yeke3EwWTh4bwdUpUi0DQ9PT0jRdyPH04fviyO0Tq9BXdjGl6Aj3/WZzG9Arebmhfg1i5wl2J0/2ZfyT+jDUfVHpfqUvAvwnVG+8NaH+BDdC5aM4VXtAMdUwwT0K8YeXcx7NHhN/gnqO1kbIyfq7WH8NwVnaKdph7w5Fa4OYC7GBcDDeCKxAzf2LfvWOCfIZDLmsmlBJ6+7vLQ7ZU9mJAIHvxkOtkZDyP1Wq6xNuy162AXY7xXwCsDPWlc2YP9AY9/1mj5qWtkP0123Aq+259GXgYeOKbv2laiXghK7mmbXEKoHMhV19VSdpP3lrulj+Au4cvJdyVlWzed7I2HoXo35l/wSBFHuMDd1nXddbATfrrdnIu1Cu5nCMbA9prhHdRHYsd7awliaQDxmslmdFXX8ouc3lxLFkvDMG2qnxbusmK4X6OQuIRNzKABDwrFIQFNXRdl3aBTk82wZLfR4lK1pnChmb3CL8ALyGm7rAaOYbZSbhbDEzqKFyFEwpC6KgTw6Kyi6ESqiuHQLXLKHbUTQhpYXlVFATl1Q60FHt5atibDB1SSLmP0CrrJ8hJwkfV0ColTkK43MfAQf8eJZFf0w2gBfgiSSvX91+QSHBmP3B9QV0UJLH8AgioU0MvekxaX4Y4mn0NO3SyEYHRBT0rm73pDfrIegkPdpHLvi28P5od+ZJ/8ZEFCpzD1HZR0TVWXC7dY+alewBHkOFIQBBaLUWQ3bIFsfGJjrytRZnuQtcD1CpcTLim1paiu52LFl/qD/IF6mkS/wtmUDlrKk/iYrxv9eb5W4sRp6+EF50ag+zxurKXQt/lSZHeq620+U7WtpMHNa1NgB0QDY1hLfb3dQCky+TwPrF5KVs+lUmTC5JEXFHoG4/VyAlxU+KL5euZiSXzubI5YIHhVio8rYRh+vs14znBJyRk5ZTnvo1Vd25TMvsKv83yDT1VF5D7kFb1sguj7rkWpFwhmKyEGH2yprxgya6PWu4VNxZZF5WZNlSKRcOZyylIswb8NH+xBxhrksdENGUlduugy14kNMS6rQKwbFTPTS3hZrl0VZZlHkE7BbXEsCxVZ8KZvYE9Bo5r566bJ87etsW3p0fFoejS3oqSBuwI10mVWU/bwgVY1TpqWRuqUR5vBu6UtltOEdhNlmSpAydhjvAewJHcrnuHK58WH8y9Q3rDIEPOs2h0cB1/XmBS9ITwdN5QqRlv/9AqRD4S65cbrH+fkI5wObtO1tH83+6w6YjcLPixH68GlQ+xuYutNiZYOtj3XaX6Fc/hbWA67RtCr3R1CPEi3aNX3U/VXOC4H+QoR4sMZfAjHeZP749y/L1c6oU715CZ23CalzOE170mbRqOmJ/SP187hgk9MU9Sv399dNPad637y4/AOPL7zz0QK+v4OfLy/A3/6+B/+38I/nsD/Ah0GX828jtDoAAAAAElFTkSuQmCC","gravespider":"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","greatswordsoldier":"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","infernolion":"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","darkknight":"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","hellgeneral":"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"};for(const k in E){const im=new Image();im.src="data:image/png;base64,"+E[k];ENEMYIMG[k]=im;}})();
 const SPR={};
 function buildSprites(){
   // 勇者：方向ごとに [立ち, 歩行A, 歩行B] の3コマ（CHARスケール）
@@ -354,13 +153,13 @@ function buildSprites(){
   SPR.slime=makeSprite(SLIME,SLIME_PAL,CHAR);
   SPR.bat=makeSprite(BAT,BAT_PAL,CHAR);
   SPR.bone=makeSprite(BONE,BONE_PAL,CHAR);
-  SPR.rotcorpse=makeSprite(ROT,ROT_PAL,CHAR);
-  SPR.soulflame=makeSprite(SOUL,SOUL_PAL,CHAR);
-  SPR.gravespider=makeSprite(SPIDER,SPIDER_PAL,CHAR);
-  SPR.greatswordsoldier=makeSprite(ZAN,ZAN_PAL,CHAR);
-  SPR.infernolion=makeSprite(LION,LION_PAL,CHAR);
-  SPR.darkknight=makeSprite(NOX,NOX_PAL,CHAR);
-  SPR.hellgeneral=makeSprite(GEHE,GEHE_PAL,CHAR);
+  SPR.rotcorpse=ENEMYIMG.rotcorpse;
+  SPR.soulflame=ENEMYIMG.soulflame;
+  SPR.gravespider=ENEMYIMG.gravespider;
+  SPR.greatswordsoldier=ENEMYIMG.greatswordsoldier;
+  SPR.infernolion=ENEMYIMG.infernolion;
+  SPR.darkknight=ENEMYIMG.darkknight;
+  SPR.hellgeneral=ENEMYIMG.hellgeneral;
 }
 
 // ====== ゲームデータ（後でAPI配信へ差し替えやすいよう分離） ======
@@ -376,9 +175,9 @@ const GAME_DATA={
   ]
 };
 // 魔王（ラスボス）。※スプライトは仮(bone)。魔王の絵が出来たら spr を差し替え
-const MAOH={ name:"まおう", spr:"bone", maxhp:120, atk:28, def:12, exp:200, gold:300, weak:[], resist:[] };
+const MAOH={ name:"まおう", spr:"bone", maxhp:120, atk:28, def:12, exp:200, gold:300, weak:[], resist:[], big:true };
 // 中ボス：ゲヘナ将（東の洞窟最奥でエリアへの道を塞ぐ関門）
-const GEHENA={ name:"ゲヘナ将", spr:"hellgeneral", maxhp:64, atk:23, def:17, exp:85, gold:100, weak:["氷"], resist:["火","雷"] };
+const GEHENA={ name:"ゲヘナ将", spr:"hellgeneral", maxhp:64, atk:23, def:17, exp:85, gold:100, weak:["氷"], resist:["火","雷"], big:true };
 // エリアの強敵（中くらい）
 const E_AREA=[
   { name:"クサレビト",   spr:"rotcorpse",         maxhp:32, atk:16, def:9,  exp:19, gold:16, weak:["火"],       resist:["氷"] },
@@ -1492,21 +1291,14 @@ function drawHeroFallback(){
   const dy=Math.round(player.y+player.size-spr.height)+12-bob;
   ctx.drawImage(spr, dx, dy);
 }
-// 仲間i(0始まり)の立ち位置。足跡が足りない時は勇者の後方へ等間隔に補完（必ず後ろに並ぶ）
-function followerSpot(i){
-  const need=(i+1)*FOLLOW_GAP;
-  if(trail.length>need) return trail[need];
-  const base = trail.length ? trail[trail.length-1] : {x:player.x,y:player.y,dir:player.dir};
-  const back={right:[-1,0],left:[1,0],up:[0,1],down:[0,-1]}[base.dir] || [0,1];
-  const miss=(need-(trail.length-1))*3;   // 足りない足跡ぶんだけ進行方向の逆へ(1足跡=3px)
-  return {x:base.x+back[0]*miss, y:base.y+back[1]*miss, dir:base.dir};
-}
 // 勇者＋仲間を足元のyで奥→手前に並べて描画（仲間は勇者の足跡を追従）
 function drawParty(){
   const list=[{key:"hero", dir:player.dir, x:player.x, y:player.y, walk:player.walk, hero:true}];
   const fol=party.slice(1);
   for(let i=0;i<fol.length;i++){
-    const t=followerSpot(i);
+    const need=(i+1)*FOLLOW_GAP;
+    if(trail.length<=need) continue;   // 足跡がまだ足りない（建物を出た直後・マップ移動直後）→ 表示しない。歩くと順に現れる
+    const t=trail[need];
     const key=fol[i].img || ({hero:"hero",mage:"mage",warrior:"warrior",priest:"sister"})[fol[i].role] || "hero";  // imgが無くても職業から補う
     list.push({key, dir:t.dir, x:t.x, y:t.y, walk:player.walk, hero:false});
   }
@@ -1588,14 +1380,17 @@ function drawBattle(){
     ctx.fillStyle=m.down?"#777":"#9fd0ff"; ctx.fillText("MP "+m.mp+"/"+m.maxmp, cx, 98);
   }
   // 敵（バナーの下〜下部ウィンドウの間の中央。枠と重ならない）
-  const ew=SPR[b.enemy.spr].width*2, float=Math.sin(Date.now()*0.003)*7;   // 原画を2倍で綺麗に（中ボス128px→256pxで一回り大きい）
+  const eimg=SPR[b.enemy.spr], float=Math.sin(Date.now()*0.003)*7;
   const shakeX=b.shake>0?(Math.random()-0.5)*b.shake:0;
+  const iw=eimg.width||80, ih=eimg.height||80;
+  const eh=b.enemy.big?260:200;                 // 表示高さ（中ボス/魔王は大きめ）
+  const ew=Math.round(eh*iw/ih);                // アスペクト比を保つ（画像は非正方）
   const _top=20+_bh, _bot=VIEW-240;
-  const ex=VIEW/2-ew/2+shakeX, ey=_top+((_bot-_top)-ew)/2+float;
-  ctx.fillStyle="#1c1838"; ctx.fillRect(0, Math.round(ey+ew+6), VIEW, 3);   // 敵の足元の地面ライン
-  if(!(b.flash>0 && Math.floor(Date.now()/60)%2)) ctx.drawImage(SPR[b.enemy.spr], ex, ey, ew, ew);
+  const ex=VIEW/2-ew/2+shakeX, ey=_top+((_bot-_top)-eh)/2+float;
+  ctx.fillStyle="#1c1838"; ctx.fillRect(0, Math.round(ey+eh+6), VIEW, 3);   // 敵の足元の地面ライン
+  if(eimg.width && !(b.flash>0 && Math.floor(Date.now()/60)%2)) ctx.drawImage(eimg, ex, ey, ew, eh);
   ctx.fillStyle="#fff"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="center";
-  ctx.fillText(b.enemy.name, VIEW/2, ey+ew+34); ctx.textAlign="left";
+  ctx.fillText(b.enemy.name, VIEW/2, ey+eh+34); ctx.textAlign="left";
   // プレイヤー被弾フラッシュ
   if(b.shakeP>0 && Math.floor(Date.now()/50)%2){ ctx.fillStyle="rgba(200,30,30,0.18)"; ctx.fillRect(0,0,VIEW,VIEW); }
   // 下部ウィンドウ

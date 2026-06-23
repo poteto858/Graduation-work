@@ -493,7 +493,6 @@ function makePriest(){  // 修道女（シスター）：回復・補助
 let battle=null;
 let encCooldown=0;
 const BATTLE_CMDS=["たたかう","とくぎ","じゅもん","どうぐ","にげる"];
-const SPELLS=[{name:"かえん",mp:3},{name:"いやし",mp:4},{name:"もどる",mp:0}];
 
 // 施設（宿屋/武器屋/道具屋/教会）
 let service=null;
@@ -525,7 +524,6 @@ function loadMap(name, sx, sy){
   }
   mode="field";
 }
-function loadField(){ loadMap("field"); }
 
 // 建物の足元当たり判定（ドア以外は壁）。ドア=(x+1, y+1)
 // 建物のドア位置（装飾建物 deco はドア無し＝全部壁）。サイズは w×h（既定3×2）

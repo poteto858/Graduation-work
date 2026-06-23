@@ -88,7 +88,7 @@ void playFx(const String& s){
   }
 }
 
-#include "webpage.h"
+#include "webpage_gz.h" // ゲームHTMLをgzip圧縮したバイト列（PAGE_GZ / PAGE_GZ_LEN）。_gzip_page.py が webpage.h から生成
 #include "maps.h"      // /maps.json で配信するマップデータ（webpage.h から分離）
 
 void setup(){
@@ -184,18 +184,18 @@ void loop(){
       client.stop();
     }
     else{
-      // ページ(約115KB)を確実に送る。WiFiS3のwrite()は大きい一括送信で詰まり
-      // 画面が真っ白/ぐるぐるになる。そこで【1KBずつ小さく刻んで】送り切る。
-      // Content-Lengthでブラウザに総バイト数を伝え、取りこぼし/途中切れを防ぐ。
-      size_t len = strlen(page), off = 0; unsigned long t0 = millis();
+      // ゲームHTMLを gzip圧縮のまま配信（ブラウザが自動展開＝マイコンは展開しないのでSRAM消費は最小）。
+      // gzipは2進数なので長さは PAGE_GZ_LEN で指定。WiFiS3が詰まらないよう【1KBずつ刻んで】送り切る。
+      size_t len = PAGE_GZ_LEN, off = 0; unsigned long t0 = millis();
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/html; charset=UTF-8");
+      client.println("Content-Encoding: gzip");
       client.println("Content-Length: " + String((unsigned long)len));
       client.println("Connection: close");
       client.println();
       while(off < len && client.connected()){
         size_t chunk = len - off; if(chunk > 1024) chunk = 1024;   // 1KBずつ
-        size_t n = client.write((const uint8_t*)(page + off), chunk);
+        size_t n = client.write((const uint8_t*)(PAGE_GZ + off), chunk);
         if(n > 0){ off += n; t0 = millis(); }
         else { if(millis() - t0 > 5000) break; delay(1); }   // 5秒進まなければ打ち切り
       }

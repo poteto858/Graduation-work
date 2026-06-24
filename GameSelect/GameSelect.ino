@@ -1,19 +1,19 @@
 /*
-  RPG_Quest.ino
-  Arduino UNO R4 WiFi - Web RPG (Phase 16 / 第一スライス)
+  GameSelect.ino
+  Arduino UNO R4 WiFi - ゲーム選択ランチャー（統合）
 
-  目的:
-    - フィールドを歩ける（勇者キャラ・カメラ追従）
-    - NPCに話しかけると会話ウィンドウ（ドラクエ風）
-    - 物語の導入（魔王討伐）
+  1台で「迷路ゲーム」と「RPG_Quest」の2作を配信する統合スケッチ。
+  起動してアクセスすると、まずゲーム選択画面が出る（URLパスで出し分け）:
+    /        -> 選択画面（launcher.h）
+    /maze    -> 迷路（maze_gz.h … MazeGame由来。_sync.py でコピー）
+    /rpg     -> RPG （webpage_gz.h … RPG_Quest由来。_sync.py でコピー）
+    /state /fx /led /maps.json -> 共通（迷路は /state のみ使用）
 
-  設計方針（両取り）:
-    - ゲームデータは GAME_DATA に分離。後で /api 配信へ差し替えやすくする。
-    - 迷路(MazeGame)とは別ファイル。モード統合は組み込みリファクタ時。
+  ※ 各ゲームの本体は MazeGame/ と RPG_Quest/ で開発する。
+     ここへは _sync.py で最新の maze_gz.h / webpage_gz.h / maps.h を取り込む。
 
   操作:
-    - PC: WASD / 矢印で移動、Space または Enter で話す・会話送り
-    - スマホ: 移動したい方向をタップ、会話中はタップで送り
+    - PC: WASD / 矢印、Space/Enter　スマホ: タップ　実機: ジョイスティック
 */
 
 #include <WiFiS3.h>
@@ -25,8 +25,8 @@ char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 // 外での持ち出しプレイ用: Arduino自身が立てるWi-Fi(アクセスポイント)。
 // 「配るための」公開情報（QRに載せる）なので arduino_secrets.h ではなくここに置く。
-const char* AP_SSID = "RPG_Quest";
-const char* AP_PASS = "rpgquest";   // WPA2のため8文字以上。スマホはこのSSIDにつなぐ
+const char* AP_SSID = "GameSelect";
+const char* AP_PASS = "gameselect";   // WPA2のため8文字以上。スマホはこのSSIDにつなぐ
 WiFiServer server(80);
 
 // ===== ハードウェア =====
@@ -94,6 +94,8 @@ void playFx(const String& s){
 
 #include "webpage_gz.h" // RPGのHTMLをgzip圧縮したバイト列（PAGE_GZ / PAGE_GZ_LEN）。_gzip_page.py が webpage.h から生成
 #include "maps.h"      // /maps.json で配信するマップデータ（webpage.h から分離）
+#include "maze_gz.h"   // 迷路ページをgzip圧縮したバイト列（MAZE_GZ / MAZE_GZ_LEN）。_gzip_maze.py が maze.html から生成
+#include "launcher.h"  // 起動時のゲーム選択画面（LAUNCHER_HTML, 生文字列・raw配信）
 
 void setup(){
   Serial.begin(9600);
@@ -154,6 +156,24 @@ void sendGzipPage(WiFiClient& client, const unsigned char* data, size_t len){
   while(off < len && client.connected()){
     size_t chunk = len - off; if(chunk > 1024) chunk = 1024;
     size_t n = client.write(data + off, chunk);
+    if(n > 0){ off += n; t0 = millis(); }
+    else { if(millis() - t0 > 5000) break; delay(1); }
+  }
+  client.flush();
+  client.stop();
+}
+
+// 生(非圧縮)HTMLを配信（選択画面など小さいページ用）
+void sendHtml(WiFiClient& client, const char* data){
+  size_t len = strlen(data), off = 0; unsigned long t0 = millis();
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/html; charset=UTF-8");
+  client.println("Content-Length: " + String((unsigned long)len));
+  client.println("Connection: close");
+  client.println();
+  while(off < len && client.connected()){
+    size_t chunk = len - off; if(chunk > 1024) chunk = 1024;
+    size_t n = client.write((const uint8_t*)(data + off), chunk);
     if(n > 0){ off += n; t0 = millis(); }
     else { if(millis() - t0 > 5000) break; delay(1); }
   }
@@ -230,9 +250,15 @@ void loop(){
       client.flush();
       client.stop();
     }
+    else if(path.startsWith("/maze")){
+      sendGzipPage(client, MAZE_GZ, MAZE_GZ_LEN);   // 迷路ゲーム
+    }
+    else if(path.startsWith("/rpg")){
+      sendGzipPage(client, PAGE_GZ, PAGE_GZ_LEN);   // RPG_Quest
+    }
     else{
-      // ゲームHTML（RPG）を gzip圧縮のまま配信（ブラウザが自動展開＝SRAM消費は最小）
-      sendGzipPage(client, PAGE_GZ, PAGE_GZ_LEN);
+      // 起動時 "/"（および未知パス）は ゲーム選択画面（生HTMLをそのまま配信）
+      sendHtml(client, LAUNCHER_HTML);
     }
   }
 }

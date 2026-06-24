@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迷路ゲーム</title>
+<style>
+body{background:#222;color:#fff;text-align:center;font-family:Arial,sans-serif;}
+canvas{border:2px solid #fff;background:#333;touch-action:none;max-width:95vw;}
+button{padding:10px 18px;margin:8px 4px;font-size:15px;cursor:pointer;}
+#hud{margin-top:8px;}
+</style>
+</head>
+<body>
+
+<h2>迷路ゲーム</h2>
+<p>PC: WASD移動 / Enter決定 / Rリスタート　スマホ: タップ　ジョイスティック対応</p>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<div id="hud">
+<span id="timer">Time: 0.0s</span> |
+<span id="coininfo">Coins: 0/0</span> |
+<span id="best">Best: --</span>
+</div>
+
+<div>
+<button id="restartBtn">Restart Stage</button>
+<button id="stagesBtn">Stage Select</button>
+<button onclick="location.href='/'">← ゲーム選択</button>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const TILE=40;
+
+// ====== ステージ定義 ======
+// 記号: # 壁 / 空白 床 / S スタート / G ゴール / C コイン / E 敵
+const stages=[
+ { name:"Stage 1", map:[
+   "#############",
+   "#S #    E   #",
+   "#  #C       #",
+   "#  #  #  ####",
+   "#  #  #     #",
+   "#  #  # C   #",
+   "# C#######  #",
+   "#C       #  #",
+   "#        #  #",
+   "#######  #  #",
+   "#       C  C#",
+   "#      E   G#",
+   "#############"]},
+ { name:"Stage 2", map:[
+   "################",
+   "#S #    C   C  #",
+   "#  #           #",
+   "#  #######  #E #",
+   "#     #     #  #",
+   "#     #C CE #  #",
+   "####  #  #  #  #",
+   "#  #   C #     #",
+   "#  #C    #     #",
+   "#  #######  ####",
+   "#E #     #     #",
+   "#  #     #     #",
+   "#C #  #  ####  #",
+   "#     #       E#",
+   "#    C#       G#",
+   "################"]},
+ { name:"Stage 3", map:[
+   "###################",
+   "#S #         C    #",
+   "#  #     E        #",
+   "#  ####  ####  # C#",
+   "# E       E #  # C#",
+   "#      C C  #  #  #",
+   "##########  ####  #",
+   "#  C  CE #     #  #",
+   "#        #     #  #",
+   "####  #  ####  #  #",
+   "#        #  C  #  #",
+   "#     C  #     #  #",
+   "#  ####  #  ####  #",
+   "#        #  #C    #",
+   "#        #  #     #",
+   "#  #  ####  ####E #",
+   "#  #          E   #",
+   "#  #             G#",
+   "###################"]},
+];
+
+// ====== 状態 ======
+let screen="select";       // "select" | "playing" | "clear"
+let selIndex=0;            // ステージ選択カーソル
+let stageIndex=0;
+let map=[];
+let player, playerStart, goal;
+let coins=[], enemies=[];
+let totalCoins=0, gotCoins=0;
+let target=null;
+let keys={};
+let startTime=0, clearTime=0;
+let cameraX=0, cameraY=0;
+
+// ジョイスティック由来の移動・操作
+let joyVX=0, joyVY=0;
+let navReady=true, btnReady=true;
+
+// ====== 効果音（8bit風・Web Audio） ======
+let audioCtx=null;
+function initAudio(){
+  if(!audioCtx){
+    try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+  }
+  if(audioCtx && audioCtx.state==="suspended") audioCtx.resume();
+}
+// 単音ビープ。type:波形, f0->f1で周波数スライド可
+function beep(f0,f1,dur,type="square",vol=0.15){
+  if(!audioCtx) return;
+  const t=audioCtx.currentTime;
+  const osc=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  osc.type=type;
+  osc.frequency.setValueAtTime(f0,t);
+  if(f1&&f1!==f0) osc.frequency.linearRampToValueAtTime(f1,t+dur);
+  g.gain.setValueAtTime(vol,t);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t+dur);
+}
+function sfxStep(){ beep(220,180,0.05,"square",0.05); }          // 移動：低く短いコツコツ音
+function sfxCoin(){ beep(880,1320,0.08,"square",0.12); }          // コイン：高く上がるピロン
+function sfxHit(){ beep(400,60,0.4,"sawtooth",0.18); }            // やられ：下降するブブー
+function sfxClear(){                                              // クリア：簡単なファンファーレ
+  const seq=[[523,0],[659,120],[784,240],[1047,360]];
+  seq.forEach(([f,ms])=>setTimeout(()=>beep(f,f,0.16,"square",0.14),ms));
+}
+
+// ====== 補助 ======
+function bestKey(i){return "mazeBest_stage"+i;}
+function getBest(i){return localStorage.getItem(bestKey(i));}
+
+function hitsWall(x,y,size){
+  const cols=map[0].length, rows=map.length;
+  const l=Math.floor(x/TILE), r=Math.floor((x+size-1)/TILE);
+  const t=Math.floor(y/TILE), b=Math.floor((y+size-1)/TILE);
+  if(l<0||t<0||r>=cols||b>=rows) return true;
+  return map[t][l]==="#"||map[t][r]==="#"||map[b][l]==="#"||map[b][r]==="#";
+}
+function aabb(ax,ay,as,bx,by,bs){
+  return ax<bx+bs && ax+as>bx && ay<by+bs && ay+as>by;
+}
+
+function makeEnemy(tx,ty){
+  const sx=tx*TILE+8, sy=ty*TILE+8;
+  const e={x:sx, y:sy, size:24, vx:0, vy:0, sx:sx, sy:sy, patrol:4*TILE};
+  const sp=1.2;
+  const hOpen=(map[ty][tx-1]!=="#")||(map[ty][tx+1]!=="#");
+  if(hOpen) e.vx=sp; else e.vy=sp;
+  return e;
+}
+
+function loadStage(i){
+  stageIndex=i;
+  map=stages[i].map;
+  coins=[]; enemies=[]; gotCoins=0; target=null;
+  joyVX=0; joyVY=0; cameraX=0; cameraY=0;
+  for(let y=0;y<map.length;y++){
+    for(let x=0;x<map[y].length;x++){
+      const c=map[y][x];
+      if(c==="S"){ player={x:x*TILE+5,y:y*TILE+5,size:30,dir:"right",step:0};
+                   playerStart={x:x*TILE+5,y:y*TILE+5}; }
+      if(c==="G")  goal={x:x*TILE+20,y:y*TILE+20,radius:12};
+      if(c==="C")  coins.push({x:x*TILE+TILE/2,y:y*TILE+TILE/2,r:7,got:false});
+      if(c==="E")  enemies.push(makeEnemy(x,y));
+    }
+  }
+  totalCoins=coins.length;
+  startTime=Date.now();
+  screen="playing";
+}
+
+function respawn(){
+  player.x=playerStart.x; player.y=playerStart.y; target=null;
+}
+
+// ====== 入力 ======
+document.addEventListener("keydown",(e)=>{
+  initAudio();
+  const k=e.key.toLowerCase();
+  keys[k]=true;
+  // 矢印キーをWASDに正規化
+  if(e.key==="ArrowUp")    keys["w"]=true;
+  if(e.key==="ArrowDown")  keys["s"]=true;
+  if(e.key==="ArrowLeft")  keys["a"]=true;
+  if(e.key==="ArrowRight") keys["d"]=true;
+  if(screen==="select"){
+    if(k==="w"||e.key==="ArrowUp")   selIndex=(selIndex-1+stages.length)%stages.length;
+    if(k==="s"||e.key==="ArrowDown") selIndex=(selIndex+1)%stages.length;
+    if(e.key==="Enter"||k===" ")     loadStage(selIndex);
+  }else if(screen==="playing"){
+    if(k==="r") loadStage(stageIndex);
+    if(e.key==="ArrowUp"||e.key==="ArrowDown"||e.key==="ArrowLeft"||e.key==="ArrowRight") e.preventDefault();
+  }else if(screen==="clear"){
+    if(e.key==="Enter"||k==="r") screen="select";
+  }
+});
+document.addEventListener("keyup",(e)=>{
+  const k=e.key.toLowerCase();
+  keys[k]=false;
+  if(e.key==="ArrowUp")    keys["w"]=false;
+  if(e.key==="ArrowDown")  keys["s"]=false;
+  if(e.key==="ArrowLeft")  keys["a"]=false;
+  if(e.key==="ArrowRight") keys["d"]=false;
+});
+
+document.getElementById("restartBtn").addEventListener("click",()=>{
+  if(screen==="select") loadStage(selIndex); else loadStage(stageIndex);
+});
+document.getElementById("stagesBtn").addEventListener("click",()=>{ screen="select"; });
+
+function canvasPos(e){
+  const rect=canvas.getBoundingClientRect();
+  const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
+  return { x:(e.clientX-rect.left)*sx, y:(e.clientY-rect.top)*sy };
+}
+canvas.addEventListener("pointerdown",(e)=>{
+  initAudio();
+  const p=canvasPos(e);
+  if(screen==="select"){
+    const idx=Math.floor((p.y-95)/70);
+    if(idx>=0 && idx<stages.length){ selIndex=idx; loadStage(idx); }
+  }else if(screen==="playing"){
+    target={x:p.x+cameraX, y:p.y+cameraY};
+  }else if(screen==="clear"){
+    screen="select";
+  }
+});
+
+// ====== ジョイスティック ポーリング ======
+// しきい値。配線で上下/左右が逆なら INVERT を切り替えてください。
+const JOY_LOW=200, JOY_HIGH=820;
+const INVERT_X=false, INVERT_Y=false;
+
+async function pollJoy(){
+  try{
+    const r=await fetch("/state",{cache:"no-store"});
+    if(!r.ok) return;
+    const j=await r.json();
+    applyJoy(j);
+  }catch(e){ /* ジョイスティック未接続なら無視 */ }
+}
+function applyJoy(j){
+  // x==0 && y==0 はフローティング（未接続）と判断してニュートラル扱い
+  if(j.x===0 && j.y===0) return;
+  let xl=j.x<JOY_LOW, xh=j.x>JOY_HIGH;
+  let yl=j.y<JOY_LOW, yh=j.y>JOY_HIGH;
+  let left =INVERT_X? xh:xl, right=INVERT_X? xl:xh;
+  let up   =INVERT_Y? yh:yl, down =INVERT_Y? yl:yh;
+  const btn=j.b===1;
+
+  if(screen==="select"){
+    if((up||down)&&navReady){
+      selIndex=(selIndex+(down?1:-1)+stages.length)%stages.length;
+      navReady=false;
+    }
+    if(!up&&!down) navReady=true;
+    if(btn&&btnReady){ loadStage(selIndex); btnReady=false; }
+    if(!btn) btnReady=true;
+  }else if(screen==="playing"){
+    joyVX = left?-1:right?1:0;
+    joyVY = up?-1:down?1:0;
+    if(btn&&btnReady){ screen="select"; btnReady=false; }
+    if(!btn) btnReady=true;
+  }else if(screen==="clear"){
+    if(btn&&btnReady){ screen="select"; btnReady=false; }
+    if(!btn) btnReady=true;
+  }
+}
+setInterval(pollJoy,120);
+
+// ====== 更新 ======
+function movePlayer(dx,dy){
+  let moved=false;
+  if(dx && !hitsWall(player.x+dx,player.y,player.size)){ player.x+=dx; moved=true; }
+  if(dy && !hitsWall(player.x,player.y+dy,player.size)){ player.y+=dy; moved=true; }
+  // 向き（顔の方向）を記録。横優先で判定
+  if(dx<0) player.dir="left"; else if(dx>0) player.dir="right";
+  else if(dy<0) player.dir="up"; else if(dy>0) player.dir="down";
+  // 歩行アニメ用カウンタ
+  if(moved) player.step=(player.step+1)%40;
+}
+
+function updateEnemies(){
+  for(const e of enemies){
+    if(e.vx!==0){
+      const nx=e.x+e.vx;
+      if(hitsWall(nx,e.y,e.size)||Math.abs(nx-e.sx)>e.patrol) e.vx=-e.vx; else e.x=nx;
+    }
+    if(e.vy!==0){
+      const ny=e.y+e.vy;
+      if(hitsWall(e.x,ny,e.size)||Math.abs(ny-e.sy)>e.patrol) e.vy=-e.vy; else e.y=ny;
+    }
+    if(aabb(player.x,player.y,player.size,e.x,e.y,e.size)){ sfxHit(); respawn(); }
+  }
+}
+
+function collectCoins(){
+  const cx=player.x+player.size/2, cy=player.y+player.size/2;
+  for(const c of coins){
+    if(!c.got && Math.hypot(cx-c.x,cy-c.y) < c.r+player.size/2){
+      c.got=true; gotCoins++; sfxCoin();
+    }
+  }
+}
+
+function checkGoal(){
+  if(gotCoins<totalCoins) return;
+  const cx=player.x+player.size/2, cy=player.y+player.size/2;
+  if(Math.hypot(cx-goal.x,cy-goal.y) < goal.radius+player.size/2){
+    screen="clear";
+    sfxClear();
+    clearTime=(Date.now()-startTime)/1000;
+    const b=getBest(stageIndex);
+    if(!b || clearTime<Number(b)) localStorage.setItem(bestKey(stageIndex),clearTime);
+  }
+}
+
+function update(){
+  if(screen!=="playing") return;
+  const speed=2;
+  let dx=0, dy=0;
+  if(keys["w"]) dy-=speed;
+  if(keys["s"]) dy+=speed;
+  if(keys["a"]) dx-=speed;
+  if(keys["d"]) dx+=speed;
+  dx+=joyVX*speed; dy+=joyVY*speed;
+  const beforeStep=player.step;
+  if(dx) movePlayer(dx,0);
+  if(dy) movePlayer(0,dy);
+
+  if(target){
+    const cx=player.x+player.size/2, cy=player.y+player.size/2;
+    const tx=target.x-cx, ty=target.y-cy;
+    const dist=Math.hypot(tx,ty);
+    if(dist>3) movePlayer(tx/dist*speed, ty/dist*speed);
+    else target=null;
+  }
+  // 移動中だけ、一定間隔でコツコツ音
+  if(player.step!==beforeStep && player.step%9===0) sfxStep();
+
+  updateEnemies();
+  collectCoins();
+  checkGoal();
+  updateCamera();
+}
+
+function updateCamera(){
+  const mapW=map[0].length*TILE, mapH=map.length*TILE;
+  const cx=player.x+player.size/2, cy=player.y+player.size/2;
+  cameraX=Math.max(0, Math.min(cx-200, mapW-400));
+  cameraY=Math.max(0, Math.min(cy-200, mapH-400));
+}
+
+// ====== 描画 ======
+function drawSelect(){
+  ctx.clearRect(0,0,400,400);
+  ctx.textAlign="center";
+  ctx.fillStyle="#fff"; ctx.font="28px Arial";
+  ctx.fillText("STAGE SELECT",200,60);
+  ctx.font="18px Arial";
+  for(let i=0;i<stages.length;i++){
+    const y=120+i*70;
+    ctx.fillStyle = i===selIndex ? "#444" : "#2a2a2a";
+    ctx.fillRect(60,y-30,280,55);
+    if(i===selIndex){ ctx.strokeStyle="lime"; ctx.lineWidth=3; ctx.strokeRect(60,y-30,280,55); }
+    ctx.fillStyle="#fff"; ctx.font="18px Arial";
+    ctx.fillText(stages[i].name,200,y-4);
+    const b=getBest(i);
+    ctx.fillStyle="#9cf"; ctx.font="13px Arial";
+    ctx.fillText(b?("Best: "+Number(b).toFixed(1)+"s"):"Best: --",200,y+16);
+  }
+  ctx.fillStyle="#aaa"; ctx.font="12px Arial";
+  ctx.fillText("W/S・ジョイスティック上下: 選択",200,355);
+  ctx.fillText("Enter・ボタン・タップ: 決定",200,375);
+  ctx.textAlign="left";
+}
+
+// ===== 迷路用：パックマン風プレイヤー =====
+function drawPlayer(){
+  const s=player.size, cx=player.x+s/2, cy=player.y+s/2, r=s/2-1;
+  const dir=player.dir||"right";
+  // 口の開き具合（歩くとパクパク）。0=閉じ ～ 0.25*PI=最大
+  const mouth=Math.abs(Math.sin(player.step*0.16))*0.28*Math.PI + 0.04;
+  // 向き→口が開く方向の角度
+  const base={right:0, down:Math.PI/2, left:Math.PI, up:-Math.PI/2}[dir];
+
+  // 足元の影
+  ctx.fillStyle="rgba(0,0,0,0.25)";
+  ctx.beginPath(); ctx.ellipse(cx, player.y+s-1, 10, 3, 0, 0, Math.PI*2); ctx.fill();
+
+  // 本体（黄色い円＋口の切り欠き）
+  ctx.fillStyle="#ffe11a";
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, base+mouth, base+Math.PI*2-mouth);
+  ctx.closePath();
+  ctx.fill();
+  // 輪郭
+  ctx.strokeStyle="#c9a900"; ctx.lineWidth=1.5; ctx.stroke();
+
+  // 目（口の反対側・少し上に）
+  const eyeAng=base-Math.PI/2;        // 進行方向に対して上側
+  const ex=cx+Math.cos(eyeAng)*r*0.45;
+  const ey=cy+Math.sin(eyeAng)*r*0.45;
+  ctx.fillStyle="#222";
+  ctx.beginPath(); ctx.arc(ex, ey, 2, 0, Math.PI*2); ctx.fill();
+}
+
+// ===== RPG用：勇者キャラ（迷路では未使用、RPG編で使う） =====
+function drawHero(){
+  const s=player.size, cx=player.x+s/2, top=player.y;
+  const dir=player.dir||"down";
+  // 歩行で脚を交互に動かす（step を sin で揺らす）
+  const swing=Math.sin(player.step*0.5)*2;
+
+  // 足元の影
+  ctx.fillStyle="rgba(0,0,0,0.25)";
+  ctx.beginPath(); ctx.ellipse(cx, top+s-1, 10, 3, 0, 0, Math.PI*2); ctx.fill();
+
+  // 脚（2本・交互）
+  ctx.fillStyle="#5a3825";
+  ctx.fillRect(cx-7, top+s-8+swing, 5, 8);
+  ctx.fillRect(cx+2, top+s-8-swing, 5, 8);
+
+  // 体（緑のチュニック・角丸）
+  ctx.fillStyle="#2e9e3f";
+  roundRect(cx-9, top+12, 18, 14, 4); ctx.fill();
+  // ベルト
+  ctx.fillStyle="#7a4a1e"; ctx.fillRect(cx-9, top+22, 18, 3);
+
+  // 腕
+  ctx.fillStyle="#2e9e3f";
+  ctx.fillRect(cx-11, top+13, 3, 9);
+  ctx.fillRect(cx+8, top+13, 3, 9);
+
+  // 頭（肌色）
+  ctx.fillStyle="#f4c79a";
+  ctx.beginPath(); ctx.arc(cx, top+8, 8, 0, Math.PI*2); ctx.fill();
+
+  // 髪（向きで形を変える。上向きは後頭部で顔が隠れる）
+  ctx.fillStyle="#6b3b1a";
+  ctx.beginPath();
+  if(dir==="up"){
+    // 後ろ姿：頭全体を髪で覆う
+    ctx.arc(cx, top+8, 8, 0, Math.PI*2); ctx.fill();
+  }else{
+    // 前髪＋サイド
+    ctx.arc(cx, top+6, 8, Math.PI, 0); ctx.fill();
+    ctx.fillRect(cx-8, top+4, 3, 6);
+    ctx.fillRect(cx+5, top+4, 3, 6);
+  }
+
+  // 目（上向き以外で表示。向きで位置をずらす）
+  if(dir!=="up"){
+    let ex=0;
+    if(dir==="left") ex=-2;
+    if(dir==="right") ex=2;
+    ctx.fillStyle="#222";
+    if(dir==="left"){
+      ctx.beginPath(); ctx.arc(cx-3, top+9, 1.6, 0, Math.PI*2); ctx.fill();
+    }else if(dir==="right"){
+      ctx.beginPath(); ctx.arc(cx+3, top+9, 1.6, 0, Math.PI*2); ctx.fill();
+    }else{
+      ctx.beginPath(); ctx.arc(cx-3+ex, top+9, 1.6, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx+3+ex, top+9, 1.6, 0, Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+// 角丸長方形のパスを作る補助関数
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+// ===== 敵：ゴースト風 =====
+function drawGhost(e, color){
+  const s=e.size, cx=e.x+s/2, top=e.y, r=s/2;
+  const baseY=top+s;            // 体の下端
+  const wob=Math.sin(Date.now()*0.006 + e.x)*1.2;  // スカートの揺れ
+
+  // 体（上は半円、下はギザギザのスカート）
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.arc(cx, top+r, r, Math.PI, 0);          // 頭頂のドーム
+  ctx.lineTo(cx+r, baseY-2+wob);
+  // 下端を3つの波で
+  const n=3, w=(s)/n;
+  for(let k=0;k<n;k++){
+    const x0=cx+r-k*w;
+    ctx.lineTo(x0-w/2, baseY-5+wob);
+    ctx.lineTo(x0-w,   baseY-2-wob);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // 目（白目＋黒目。黒目はプレイヤー方向を見る）
+  const pcx=player.x+player.size/2, pcy=player.y+player.size/2;
+  const ang=Math.atan2(pcy-(top+r), pcx-cx);
+  const dx=Math.cos(ang)*1.5, dy=Math.sin(ang)*1.5;
+  for(const ox of [-4,4]){
+    ctx.fillStyle="#fff";
+    ctx.beginPath(); ctx.arc(cx+ox, top+r-1, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle="#1a2a6b";
+    ctx.beginPath(); ctx.arc(cx+ox+dx, top+r-1+dy, 1.6, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawPlaying(){
+  ctx.clearRect(0,0,400,400);
+  ctx.save();
+  ctx.translate(-cameraX, -cameraY);
+
+  // 壁
+  for(let y=0;y<map.length;y++){
+    for(let x=0;x<map[y].length;x++){
+      if(map[y][x]==="#"){ ctx.fillStyle="steelblue"; ctx.fillRect(x*TILE,y*TILE,TILE,TILE); }
+    }
+  }
+  // コイン
+  for(const c of coins){
+    if(c.got) continue;
+    ctx.fillStyle="gold"; ctx.beginPath(); ctx.arc(c.x,c.y,c.r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle="#b8860b"; ctx.lineWidth=2; ctx.stroke();
+  }
+  // ゴール（全コイン未取得なら灰色＝ロック）
+  const open=(gotCoins>=totalCoins);
+  ctx.fillStyle= open ? "red" : "#777";
+  ctx.beginPath(); ctx.arc(goal.x,goal.y,goal.radius,0,Math.PI*2); ctx.fill();
+  // 敵（ゴースト）
+  const GHOST_COLORS=["#e0457b","#36c2e0","#ff9a40","#9b6bff","#43c95a","#e0d048"];
+  enemies.forEach((e,i)=>drawGhost(e, GHOST_COLORS[i%GHOST_COLORS.length]));
+  // タップ目標
+  if(target){
+    ctx.strokeStyle="yellow"; ctx.beginPath(); ctx.arc(target.x,target.y,8,0,Math.PI*2); ctx.stroke();
+  }
+  // プレイヤー
+  drawPlayer();
+
+  ctx.restore();
+
+  // HUD（スクリーン座標）
+  const now=(Date.now()-startTime)/1000;
+  document.getElementById("timer").textContent="Time: "+now.toFixed(1)+"s";
+  document.getElementById("coininfo").textContent="Coins: "+gotCoins+"/"+totalCoins;
+  const b=getBest(stageIndex);
+  document.getElementById("best").textContent=b?("Best: "+Number(b).toFixed(1)+"s"):"Best: --";
+}
+
+function drawClear(){
+  drawPlaying();
+  ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(0,0,400,400);
+  ctx.textAlign="center"; ctx.fillStyle="#fff";
+  ctx.font="36px Arial"; ctx.fillText("CLEAR!",200,150);
+  ctx.font="20px Arial";
+  ctx.fillText(stages[stageIndex].name,200,190);
+  ctx.fillText("Time: "+clearTime.toFixed(1)+"s",200,220);
+  const b=getBest(stageIndex);
+  ctx.fillStyle="#9cf";
+  ctx.fillText("Best: "+(b?Number(b).toFixed(1):clearTime.toFixed(1))+"s",200,248);
+  ctx.fillStyle="#aaa"; ctx.font="15px Arial";
+  ctx.fillText("Enter・ボタン・タップ: ステージ選択へ",200,290);
+  ctx.textAlign="left";
+}
+
+function draw(){
+  if(screen==="select") drawSelect();
+  else if(screen==="playing") drawPlaying();
+  else drawClear();
+}
+
+function gameLoop(){
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>

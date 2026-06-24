@@ -92,8 +92,10 @@ void playFx(const String& s){
   }
 }
 
-#include "webpage_gz.h" // ゲームHTMLをgzip圧縮したバイト列（PAGE_GZ / PAGE_GZ_LEN）。_gzip_page.py が webpage.h から生成
+#include "webpage_gz.h" // RPGのHTMLをgzip圧縮したバイト列（PAGE_GZ / PAGE_GZ_LEN）。_gzip_page.py が webpage.h から生成
 #include "maps.h"      // /maps.json で配信するマップデータ（webpage.h から分離）
+#include "maze_gz.h"   // 迷路ページをgzip圧縮したバイト列（MAZE_GZ / MAZE_GZ_LEN）。_gzip_maze.py が maze.html から生成
+#include "launcher.h"  // 起動時のゲーム選択画面（LAUNCHER_HTML, 生文字列・raw配信）
 
 void setup(){
   Serial.begin(9600);
@@ -139,6 +141,43 @@ void sendShort(WiFiClient& client, const String& body){
   client.println("Connection: close");
   client.println();
   client.print(body);
+  client.stop();
+}
+
+// gzip圧縮済みHTMLを配信（ブラウザが自動展開。WiFiS3が詰まらないよう1KBずつ送り切る）
+void sendGzipPage(WiFiClient& client, const unsigned char* data, size_t len){
+  size_t off = 0; unsigned long t0 = millis();
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/html; charset=UTF-8");
+  client.println("Content-Encoding: gzip");
+  client.println("Content-Length: " + String((unsigned long)len));
+  client.println("Connection: close");
+  client.println();
+  while(off < len && client.connected()){
+    size_t chunk = len - off; if(chunk > 1024) chunk = 1024;
+    size_t n = client.write(data + off, chunk);
+    if(n > 0){ off += n; t0 = millis(); }
+    else { if(millis() - t0 > 5000) break; delay(1); }
+  }
+  client.flush();
+  client.stop();
+}
+
+// 生(非圧縮)HTMLを配信（選択画面など小さいページ用）
+void sendHtml(WiFiClient& client, const char* data){
+  size_t len = strlen(data), off = 0; unsigned long t0 = millis();
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/html; charset=UTF-8");
+  client.println("Content-Length: " + String((unsigned long)len));
+  client.println("Connection: close");
+  client.println();
+  while(off < len && client.connected()){
+    size_t chunk = len - off; if(chunk > 1024) chunk = 1024;
+    size_t n = client.write((const uint8_t*)(data + off), chunk);
+    if(n > 0){ off += n; t0 = millis(); }
+    else { if(millis() - t0 > 5000) break; delay(1); }
+  }
+  client.flush();
   client.stop();
 }
 
@@ -211,24 +250,15 @@ void loop(){
       client.flush();
       client.stop();
     }
+    else if(path.startsWith("/maze")){
+      sendGzipPage(client, MAZE_GZ, MAZE_GZ_LEN);   // 迷路ゲーム
+    }
+    else if(path.startsWith("/rpg")){
+      sendGzipPage(client, PAGE_GZ, PAGE_GZ_LEN);   // RPG_Quest
+    }
     else{
-      // ゲームHTMLを gzip圧縮のまま配信（ブラウザが自動展開＝マイコンは展開しないのでSRAM消費は最小）。
-      // gzipは2進数なので長さは PAGE_GZ_LEN で指定。WiFiS3が詰まらないよう【1KBずつ刻んで】送り切る。
-      size_t len = PAGE_GZ_LEN, off = 0; unsigned long t0 = millis();
-      client.println("HTTP/1.1 200 OK");
-      client.println("Content-Type: text/html; charset=UTF-8");
-      client.println("Content-Encoding: gzip");
-      client.println("Content-Length: " + String((unsigned long)len));
-      client.println("Connection: close");
-      client.println();
-      while(off < len && client.connected()){
-        size_t chunk = len - off; if(chunk > 1024) chunk = 1024;   // 1KBずつ
-        size_t n = client.write((const uint8_t*)(PAGE_GZ + off), chunk);
-        if(n > 0){ off += n; t0 = millis(); }
-        else { if(millis() - t0 > 5000) break; delay(1); }   // 5秒進まなければ打ち切り
-      }
-      client.flush();
-      client.stop();
+      // 起動時 "/"（および未知パス）は ゲーム選択画面（生HTMLをそのまま配信）
+      sendHtml(client, LAUNCHER_HTML);
     }
   }
 }

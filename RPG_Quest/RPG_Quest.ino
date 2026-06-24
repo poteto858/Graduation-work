@@ -23,6 +23,10 @@
 
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
+// 外での持ち出しプレイ用: Arduino自身が立てるWi-Fi(アクセスポイント)。
+// 「配るための」公開情報（QRに載せる）なので arduino_secrets.h ではなくここに置く。
+const char* AP_SSID = "RPG_Quest";
+const char* AP_PASS = "rpgquest";   // WPA2のため8文字以上。スマホはこのSSIDにつなぐ
 WiFiServer server(80);
 
 // ===== ハードウェア =====
@@ -97,10 +101,34 @@ void setup(){
   pinMode(PIN_BUZZ, OUTPUT);
   strip.begin(); strip.show();   // 全消灯
   matrix.begin();                // 内蔵LEDマトリクス開始
-  while(WiFi.begin(ssid,pass)!=WL_CONNECTED){ delay(2000); Serial.println("Connecting..."); }
-  Serial.println("Connected");
-  while(WiFi.localIP()==IPAddress(0,0,0,0)){ delay(500); Serial.println("Waiting for IP..."); }
-  Serial.println(WiFi.localIP());
+
+  // --- Wi-Fi: 家ではルーターに接続(STA)、外ではArduino自身がアクセスポイント(AP)になる ---
+  // ボタン(ジョイスティックSW)を押しながらリセットすると、待たずに即AP（外での持ち出し用）。
+  bool forceAP = (digitalRead(PIN_SW) == LOW);
+  if(!forceAP){
+    Serial.println("Connecting to home Wi-Fi...");
+    unsigned long t0 = millis();
+    while(WiFi.begin(ssid, pass) != WL_CONNECTED && millis() - t0 < 12000){
+      delay(1000); Serial.print(".");
+    }
+    Serial.println();
+  }
+  if(!forceAP && WiFi.status() == WL_CONNECTED){
+    // 家: ルーター経由（スマホ・PCを同じWi-Fiに）
+    while(WiFi.localIP() == IPAddress(0,0,0,0)){ delay(500); }
+    Serial.print("[STA] Connected  ->  http://");
+    Serial.print(WiFi.localIP()); Serial.println("/");
+  } else {
+    // 外: Arduinoが自前のWi-Fi(AP)を立てる。スマホをAP_SSIDにつなぎ http://192.168.4.1/
+    Serial.println(forceAP ? "[AP] Forced by button" : "[AP] No home Wi-Fi -> Access Point");
+    int st = WiFi.beginAP(AP_SSID, AP_PASS);
+    if(st != WL_AP_LISTENING){ Serial.println("[AP] start failed"); }
+    delay(2000);
+    Serial.print("[AP] SSID: ");  Serial.print(AP_SSID);
+    Serial.print("  PASS: ");     Serial.println(AP_PASS);
+    Serial.print("[AP] join then  ->  http://");
+    Serial.print(WiFi.localIP()); Serial.println("/");
+  }
   server.begin();
 }
 

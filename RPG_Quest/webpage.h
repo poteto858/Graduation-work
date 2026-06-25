@@ -664,8 +664,9 @@ function advanceSvc(){
 function confirmSvc(){ const s=service; if(s.phase==="menu"){ const a=s.actions[s.cursor]; if(a)a(); } else advanceSvc(); }
 function clearMoveInput(){ keys['w']=keys['s']=keys['a']=keys['d']=false; tapDir=null; }  // 遷移時に押しっぱなし入力を解除
 function closeService(){
-  const b=service.b;
-  player.x=(b.x+1)*TILE+(TILE-player.size)/2; player.y=(b.y+2)*TILE+(TILE-player.size)/2; // ドアの前へ
+  const b=service.b, d=buildingDoor(b);
+  const fx=d?d.dx:b.x+1, fy=d?d.dy+1:b.y+2;   // ドアの真下へ（建物サイズに追従。大聖堂5×3でも壁の中に出ない）
+  player.x=fx*TILE+(TILE-player.size)/2; player.y=fy*TILE+(TILE-player.size)/2;
   mode="field"; service=null; clearMoveInput();
 }
 function innStay(){
@@ -675,7 +676,8 @@ function innStay(){
 }
 function churchPray(){
   stats.hp=stats.maxhp; stats.mp=stats.maxmp;
-  respawn={ map:currentMap, tx:service.b.x+1, ty:service.b.y+2 };
+  const _d=buildingDoor(service.b);
+  respawn={ map:currentMap, tx:(_d?_d.dx:service.b.x+1), ty:(_d?_d.dy+1:service.b.y+2) };   // ドアの真下（大聖堂対応）
   saveGame();
   svcMsg(["女神に いのりを ささげた。","ここが ふっかつの ちと なった。","HP・MPが かいふくした。"], closeService);
 }

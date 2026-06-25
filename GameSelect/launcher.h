@@ -42,7 +42,7 @@ const char LAUNCHER_HTML[] = R"rawliteral(
 <script>
 const items=[
  {t:"迷路ゲーム", d:"3ステージ・コイン集め・タイムアタック", u:"/maze", ico:"🧩"},
- {t:"RPG_Quest", d:"仲間と隊列で冒険・ターン制バトル・魔王討伐", u:"/rpg", ico:"⚔️"}
+ {t:"RPG_Quest", d:"仲間と冒険・ターン制バトル・魔王討伐", u:"/rpg", ico:"⚔️"}
 ];
 let sel=0;
 const wrap=document.getElementById("cards");

@@ -226,7 +226,7 @@ const INN_COST=10;
 const REVIVE_COST=50;   // 教会での蘇生
 
 // ====== 状態 ======
-let mode="field";          // "field" | "talk" | "battle" | "status" | "service"
+let mode="field";          // "intro" | "field" | "talk" | "battle" | "status" | "service"
 let darkArea=false;
 let mapTheme="";           // ""=通常 / "castle"=魔王城（石床・煉瓦壁・赤絨毯・玉座）
 let currentMap="field";
@@ -427,6 +427,50 @@ function advanceDialog(){
     dialog.active=false; mode="field";
     const cb=dialog.after; dialog.after=null; if(cb) cb();
   } else { dialog.shown=0; dialog.t=0; }
+}
+
+// ====== オープニング（あらすじ）======
+// RPGに入った直後、本編の前に物語の導入を全画面で表示（タップ / Enter / ジョイボタンで送り）。
+let intro={active:false, page:0, shown:0, t:0};
+const INTRO_PAGES=[
+  ["むかし——","魔王が めざめ、","せかいは やみに つつまれた。"],
+  ["人々は ひかりを もとめ、","ひとりの 勇者に","のぞみを たくした。"],
+  ["なかま とともに たびに でて、","魔王を たおし、","へいわを とりもどすのだ！"]
+];
+function introLen(){ return INTRO_PAGES[intro.page].join("\n").length; }
+function startIntro(){ intro.active=true; intro.page=0; intro.shown=0; intro.t=0; mode="intro"; }
+function advanceIntro(){
+  if(intro.shown < introLen()){ intro.shown = introLen(); return; }   // タイプ途中なら一気に全表示
+  intro.page++;
+  if(intro.page >= INTRO_PAGES.length){ intro.active=false; mode="field"; }   // 冒険スタート
+  else { intro.shown=0; intro.t=0; }
+}
+function drawIntro(){
+  const g=ctx.createLinearGradient(0,0,0,VIEW);                        // 夜空グラデ背景
+  g.addColorStop(0,"#070b18"); g.addColorStop(0.55,"#0b1330"); g.addColorStop(1,"#191145");
+  ctx.fillStyle=g; ctx.fillRect(0,0,VIEW,VIEW);
+  ctx.fillStyle="rgba(255,255,255,0.65)";                             // 星（固定配置）
+  for(let i=1;i<=70;i++){ const sx=(i*131)%VIEW, sy=(i*73)%Math.floor(VIEW*0.5), s=(i%4?1:2); ctx.fillRect(sx,sy,s,s); }
+  ctx.textAlign="center";
+  ctx.fillStyle="#ffd45e"; ctx.font="bold 60px 'Segoe UI',system-ui,sans-serif";
+  ctx.fillText("RPG QUEST", VIEW/2, 158);
+  ctx.fillStyle="#9fb0d6"; ctx.font="22px 'Hiragino Kaku Gothic ProN','Segoe UI',sans-serif";
+  ctx.fillText("― 魔王討伐の ものがたり ―", VIEW/2, 200);
+  ctx.strokeStyle="rgba(255,212,94,0.55)"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(VIEW*0.22,232); ctx.lineTo(VIEW*0.78,232); ctx.stroke();
+  const joined=INTRO_PAGES[intro.page].join("\n");                    // あらすじ本文（1文字ずつ）
+  const shown=joined.slice(0,intro.shown).split("\n");
+  ctx.fillStyle="#eef2ff"; ctx.font="34px 'Hiragino Kaku Gothic ProN','Segoe UI',sans-serif";
+  const baseY=372, lh=60;
+  shown.forEach((ln,i)=>ctx.fillText(ln, VIEW/2, baseY+i*lh));
+  ctx.fillStyle="#5f6f9c"; ctx.font="18px 'Segoe UI',sans-serif";
+  ctx.fillText((intro.page+1)+" / "+INTRO_PAGES.length, VIEW/2, VIEW-148);
+  if(intro.shown>=joined.length && Math.floor(Date.now()/450)%2===0){ // 全文表示後に点滅プロンプト
+    const last=intro.page>=INTRO_PAGES.length-1;
+    ctx.fillStyle=last?"#ffd45e":"#cfe0ff"; ctx.font="bold 26px 'Segoe UI',system-ui,sans-serif";
+    ctx.fillText(last?"▶ ぼうけんを はじめる":"▶ タップ / Enter で すすむ", VIEW/2, VIEW-86);
+  }
+  ctx.textAlign="left";
 }
 
 // ====== 戦闘 ======
@@ -788,6 +832,7 @@ document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowUp")keys["w"]=true; if(e.key==="ArrowDown")keys["s"]=true;
   if(e.key==="ArrowLeft")keys["a"]=true; if(e.key==="ArrowRight")keys["d"]=true;
   if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k)) e.preventDefault();
+  if(mode==="intro"){ if(!e.repeat) advanceIntro(); return; }
   if(mode==="battle"){
     const b=battle; if(!b) return;
     if(b.state==="msg"){ if(k===" "||e.key==="Enter") advanceBattleMsg(); }
@@ -839,6 +884,7 @@ function canvasPos(e){
 }
 let tapDir=null, moveTarget=null, talkTarget=null;
 canvas.addEventListener("pointerdown",(e)=>{
+  if(mode==="intro"){ advanceIntro(); return; }
   if(mode==="talk"){ advanceDialog(); return; }
   if(mode==="battle"){
     const b=battle; if(!b) return; const p=canvasPos(e);
@@ -914,6 +960,7 @@ function joyNavDo(up,down,left,right){
   }
 }
 function joyButton(){
+  if(mode==="intro"){ advanceIntro(); return; }
   if(mode==="field"){ const n=npcInFront(); if(n) talkTo(n); }
   else if(mode==="talk"){ advanceDialog(); }
   else if(mode==="status"){ mode="field"; }
@@ -947,6 +994,11 @@ function updateMinimap(){
 
 // ====== 更新 ======
 function update(){
+  if(mode==="intro"){
+    intro.t++;
+    if(intro.t%2===0 && intro.shown<introLen()) intro.shown++;   // あらすじを1文字ずつ表示
+    return;                                                       // 本編はポーズ
+  }
   if(encCooldown>0) encCooldown--;
   if(mode==="field"){
     player.walk=0;
@@ -1500,6 +1552,7 @@ function drawStatus(){
 }
 
 function draw(){
+  if(mode==="intro"){ drawIntro(); return; }
   if(mode==="battle"){ drawBattle(); return; }
   ctx.clearRect(0,0,VIEW,VIEW);
   ctx.save(); ctx.translate(-Math.round(cameraX),-Math.round(cameraY));
@@ -1604,7 +1657,7 @@ async function loadAllMaps(){
 (async function start(){
   try{
     MAPS = await loadAllMaps();                       // マップ読み込み（これが無いと動けない）
-    buildSprites(); loadGame(); loadMap(respawn.map, respawn.tx, respawn.ty); loop();
+    buildSprites(); loadGame(); loadMap(respawn.map, respawn.tx, respawn.ty); startIntro(); loop();
     hideLoading();   // 読み込み完了
     setInterval(pollJoy,150);                         // ★マップ取得後にジョイ通信を開始（起動時の取得を邪魔しない）
   }catch(err){

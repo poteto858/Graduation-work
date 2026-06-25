@@ -67,7 +67,7 @@ addEventListener("keydown",e=>{
 });
 // ===== ジョイスティック（/state を約120msでポーリング） =====
 const JOY_LOW=200, JOY_HIGH=820;
-let navReady=true, btnReady=true;
+let navReady=true, btnReady=false, joyArmed=false;
 async function pollJoy(){
   try{
     const r=await fetch("/state",{cache:"no-store"});
@@ -75,6 +75,8 @@ async function pollJoy(){
     const j=await r.json();
     if(j.x===0 && j.y===0) return;          // 未接続フローティングは無視
     const up=j.y<JOY_LOW, down=j.y>JOY_HIGH, btn=j.b===1;
+    // 起動直後の「押しっぱなし(強制APのボタン等)」で勝手に決定しないよう、一度ニュートラルを見るまで無効化
+    if(!joyArmed){ if(!up && !down && !btn) joyArmed=true; return; }
     if((up||down)&&navReady){ move(down?1:-1); navReady=false; }
     if(!up&&!down) navReady=true;
     if(btn&&btnReady){ btnReady=false; enter(); }

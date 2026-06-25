@@ -28,8 +28,7 @@ char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 // 外での持ち出しプレイ用: Arduino自身が立てるWi-Fi(アクセスポイント)。
 // 「配るための」公開情報（QRに載せる）なので arduino_secrets.h ではなくここに置く。
-const char* AP_SSID = "GameSelect";
-const char* AP_PASS = "gameselect";   // WPA2のため8文字以上。スマホはこのSSIDにつなぐ
+const char* AP_SSID = "GameSelect";   // パスワード無し(オープン)で立てる＝R4でも確実に接続でき、キャプティブで自動的にゲームが開く
 WiFiServer server(80);
 WiFiUDP    dnsUdp;                          // キャプティブポータル用の簡易DNS（AP時のみ）
 bool       apMode = false;                  // AP(外でプレイ)モードか
@@ -176,17 +175,16 @@ void setup(){
   } else {
     // 外: Arduinoが自前のWi-Fi(AP)を立てる。スマホをAP_SSIDにつなぎ http://192.168.4.1/
     Serial.println(forceAP ? "[AP] Forced by button" : "[AP] No home Wi-Fi -> Access Point");
-    int st = WiFi.beginAP(AP_SSID, AP_PASS);
+    int st = WiFi.beginAP(AP_SSID);   // パスワード無し(オープン)＝R4でも確実に接続できる
     if(st != WL_AP_LISTENING){ Serial.println("[AP] start failed"); }
     delay(2000);
-    Serial.print("[AP] SSID: ");  Serial.print(AP_SSID);
-    Serial.print("  PASS: ");     Serial.println(AP_PASS);
+    Serial.print("[AP] SSID: ");  Serial.print(AP_SSID);  Serial.println("  (open / no password)");
     Serial.print("[AP] join then  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
     apMode = true;
     dnsUdp.begin(53);                 // 全ドメインを 192.168.4.1 へ＝キャプティブポータル
     Serial.println("[AP] captive DNS on :53");
-    showQR((String("WIFI:T:WPA;S:")+AP_SSID+";P:"+AP_PASS+";;").c_str(), "SCAN to", "join&play");
+    showQR((String("WIFI:T:nopass;S:")+AP_SSID+";;").c_str(), "SCAN to", "join&play");
   }
   server.begin();
 }
@@ -206,6 +204,7 @@ void sendGzipPage(WiFiClient& client, const unsigned char* data, size_t len){
   size_t off = 0; unsigned long t0 = millis();
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html; charset=UTF-8");
+  client.println("Cache-Control: no-store");   // 古い版をキャッシュ表示させない
   client.println("Content-Encoding: gzip");
   client.println("Content-Length: " + String((unsigned long)len));
   client.println("Connection: close");
@@ -225,6 +224,7 @@ void sendHtml(WiFiClient& client, const char* data){
   size_t len = strlen(data), off = 0; unsigned long t0 = millis();
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html; charset=UTF-8");
+  client.println("Cache-Control: no-store");   // 選択画面を常に最新で
   client.println("Content-Length: " + String((unsigned long)len));
   client.println("Connection: close");
   client.println();

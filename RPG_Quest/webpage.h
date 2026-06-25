@@ -676,7 +676,7 @@ function advanceSvc(){
   if(s.msgIdx>=s.msgs.length){ const cb=s.after; s.after=null; if(cb)cb(); } else s.shown=0;
 }
 function confirmSvc(){ const s=service; if(s.phase==="menu"){ const a=s.actions[s.cursor]; if(a)a(); } else advanceSvc(); }
-function clearMoveInput(){ keys['w']=keys['s']=keys['a']=keys['d']=false; tapDir=null; }  // 遷移時に押しっぱなし入力を解除
+function clearMoveInput(){ keys['w']=keys['s']=keys['a']=keys['d']=false; tapDir=null; moveTarget=null; talkTarget=null; }  // 遷移時に押しっぱなし入力・タップ移動を解除
 function closeService(){
   const b=service.b, d=buildingDoor(b);
   // ドアのタイルへ戻し、_onDoor=true のままにする。
@@ -837,7 +837,7 @@ function canvasPos(e){
   const r=canvas.getBoundingClientRect();
   return { x:(e.clientX-r.left)*(canvas.width/r.width), y:(e.clientY-r.top)*(canvas.height/r.height) };
 }
-let tapDir=null;
+let tapDir=null, moveTarget=null, talkTarget=null;
 canvas.addEventListener("pointerdown",(e)=>{
   if(mode==="talk"){ advanceDialog(); return; }
   if(mode==="battle"){
@@ -861,9 +861,12 @@ canvas.addEventListener("pointerdown",(e)=>{
   if(mode==="status"){ mode="field"; return; }
   const p=canvasPos(e);
   if(p.x>VIEW-72 && p.y<72){ mode="status"; return; }   // 右上メニューボタン
-  // 画面中央(プレイヤー)から見たタップ方向へ動く
-  const dx=p.x-VIEW/2, dy=p.y-VIEW/2;
-  if(Math.abs(dx)>Math.abs(dy)) tapDir=dx<0?"a":"d"; else tapDir=dy<0?"w":"s";
+  // タップした地点へ歩いて行く（ポイント移動）。ワールド座標 = 画面座標 + カメラ
+  const wx=p.x+cameraX, wy=p.y+cameraY;
+  let npc=null;
+  for(const n of npcs){ if(wx>=n.x*TILE && wx<(n.x+1)*TILE && wy>=n.y*TILE && wy<(n.y+1)*TILE){ npc=n; break; } }
+  if(npc){ moveTarget={x:npc.x*TILE+TILE/2, y:npc.y*TILE+TILE/2}; talkTarget=npc; }  // NPCなら近づいて会話
+  else { moveTarget={x:wx, y:wy}; talkTarget=null; }
 });
 canvas.addEventListener("pointerup",()=>{ tapDir=null; });
 canvas.addEventListener("pointerleave",()=>{ tapDir=null; });
@@ -947,17 +950,27 @@ function update(){
   if(encCooldown>0) encCooldown--;
   if(mode==="field"){
     player.walk=0;
-    const sp=3; let dx=0,dy=0;
+    const sp=3; let dx=0,dy=0, arrived=false;
     if(keys["w"])dy-=sp; if(keys["s"])dy+=sp;
     if(keys["a"])dx-=sp; if(keys["d"])dx+=sp;
-    if(tapDir==="w")dy-=sp; if(tapDir==="s")dy+=sp;
-    if(tapDir==="a")dx-=sp; if(tapDir==="d")dx+=sp;
     const j=joyState;                          // ジョイスティック
     if(!(j.x===0&&j.y===0)){
       if(j.x<350)dx-=sp; if(j.x>700)dx+=sp;
       if(j.y<350)dy-=sp; if(j.y>700)dy+=sp;
     }
+    if(dx||dy){ moveTarget=null; talkTarget=null; }    // キー/ジョイ操作は手動優先（タップ移動を解除）
+    else if(moveTarget){                               // タップ地点へ歩く（縦横spずつ・壁は片軸ずつ滑る）
+      const pcx=player.x+player.size/2, pcy=player.y+player.size/2;
+      const tx=moveTarget.x-pcx, ty=moveTarget.y-pcy;
+      if(Math.hypot(tx,ty) < sp) arrived=true;
+      else { dx=Math.abs(tx)<sp?tx:Math.sign(tx)*sp; dy=Math.abs(ty)<sp?ty:Math.sign(ty)*sp; }
+    }
+    const _px=player.x, _py=player.y;
     if(dx)move(dx,0); if(dy)move(0,dy);
+    if(moveTarget && (arrived || (player.x===_px && player.y===_py))){   // 到着 or 壁で停止 → タップ移動終了
+      if(talkTarget && npcInFront()===talkTarget) talkTo(talkTarget);    // NPCタップなら話しかける
+      moveTarget=null; talkTarget=null;
+    }
     if(player.walk){ trail.unshift({x:player.x,y:player.y,dir:player.dir});   // 足跡を記録
                      if(trail.length>FOLLOW_GAP*4+8) trail.length=FOLLOW_GAP*4+8; }
     updateCamera();
@@ -1498,6 +1511,13 @@ function draw(){
   drawBuildings();
   for(const n of npcs) drawNpc(n);
   drawParty();
+  if(moveTarget){   // タップ移動の目標マーカー（脈動する金色のリング）
+    const r=10+Math.sin(Date.now()*0.006)*3;
+    ctx.strokeStyle="rgba(255,210,80,0.9)"; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(moveTarget.x, moveTarget.y, r, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle="rgba(255,210,80,0.9)";
+    ctx.beginPath(); ctx.arc(moveTarget.x, moveTarget.y, 2.5, 0, Math.PI*2); ctx.fill();
+  }
   ctx.restore();
   // 周辺減光は暗いエリアのみ（城は松明照明風に軽め＆紫、洞窟は濃い闇）
   if(darkArea){

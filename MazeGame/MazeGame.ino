@@ -22,8 +22,7 @@
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 // 外での持ち出しプレイ用: Arduino自身が立てるWi-Fi(アクセスポイント)。配る前提の公開情報。
-const char* AP_SSID = "MazeGame";
-const char* AP_PASS = "mazegame";   // WPA2のため8文字以上。スマホはこのSSIDにつなぐ
+const char* AP_SSID = "MazeGame";   // パスワード無し(オープン)で立てる（R4でも確実に接続できる）
 WiFiServer server(80);
 
 // ジョイスティック: VRx->A0  VRy->A1  SW->D2(INPUT_PULLUP)  VCC->5V  GND->GND
@@ -52,11 +51,10 @@ void setup(){
     Serial.print(WiFi.localIP()); Serial.println("/");
   } else {
     Serial.println(forceAP ? "[AP] Forced by button" : "[AP] No home Wi-Fi -> Access Point");
-    int st = WiFi.beginAP(AP_SSID, AP_PASS);
+    int st = WiFi.beginAP(AP_SSID);   // パスワード無し(オープン)
     if(st != WL_AP_LISTENING){ Serial.println("[AP] start failed"); }
     delay(2000);
-    Serial.print("[AP] SSID: ");  Serial.print(AP_SSID);
-    Serial.print("  PASS: ");     Serial.println(AP_PASS);
+    Serial.print("[AP] SSID: ");  Serial.print(AP_SSID);  Serial.println("  (open / no password)");
     Serial.print("[AP] join then  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
   }

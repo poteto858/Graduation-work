@@ -102,8 +102,9 @@ void playFx(const String& s){
 #include "maze_gz.h"   // 迷路ページをgzip圧縮したバイト列（MAZE_GZ / MAZE_GZ_LEN）。_gzip_maze.py が maze.html から生成
 #include "launcher.h"  // 起動時のゲーム選択画面（LAUNCHER_HTML, 生文字列・raw配信）
 
-// ===== OLEDにQRを表示（白地に黒モジュール＋余白＝スキャンしやすい）。右に2行ラベル =====
-void showQR(const char* text, const char* l1, const char* l2){
+// ===== OLEDにQRを表示（白地に黒モジュール＋余白）。右に説明2行＋アドレス（折り返し表示） =====
+// addr = 画面が自動で開かない時に手入力するアドレス。10文字ごとに折り返して下に表示する。
+void showQR(const char* text, const char* l1, const char* l2, const char* addr){
   QRCode qr; uint8_t qrbuf[qrcode_getBufferSize(3)];
   qrcode_initText(&qr, qrbuf, 3, ECC_MEDIUM, text);
   oled.clearDisplay();
@@ -113,30 +114,39 @@ void showQR(const char* text, const char* l1, const char* l2){
     if(qrcode_getModule(&qr, x, y))
       oled.fillRect(ox+x*scale, oy+y*scale, scale, scale, SSD1306_BLACK);
   oled.setTextColor(SSD1306_WHITE); oled.setTextSize(1);
-  oled.setCursor(67, 18); oled.print(l1);
-  oled.setCursor(67, 34); oled.print(l2);
+  const int tx = ox+sz+5;                 // 文字開始x=66（QRの右・黒地）。1行=最大10文字(約60px)
+  oled.setCursor(tx, 2);  oled.print(l1);
+  oled.setCursor(tx, 12); oled.print(l2);
+  int alen = strlen(addr);                // アドレスを10文字ずつ折り返して表示（長いURL/IPでも収まる）
+  for(int i=0, y=30; i<alen; i+=10, y+=10){
+    char buf[11]; int k=0;
+    for(; k<10 && (i+k)<alen; k++) buf[k]=addr[i+k];
+    buf[k]=0;
+    oled.setCursor(tx, y); oled.print(buf);
+  }
   oled.display();
 }
 
 // ===== キャプティブポータル：どのドメイン問い合わせにも 192.168.4.1 を返す簡易DNS =====
 void handleDNS(){
-  int n = dnsUdp.parsePacket();
-  if(n < 12) return;
-  static uint8_t p[256];
-  int len = dnsUdp.read(p, sizeof(p));
-  if(len < 12) return;
-  p[2] = 0x81; p[3] = 0x80;          // フラグ: 応答(QR=1)・再帰可
-  p[6] = 0; p[7] = 1;                // ANCOUNT=1
-  p[8] = p[9] = p[10] = p[11] = 0;   // NSCOUNT/ARCOUNT=0
-  int i = 12;                        // 質問(QNAME)の末尾まで進む（ラベル長+1ずつ）
-  while(i < len && p[i] != 0){ i += p[i] + 1; }
-  i += 1 + 4;                        // 0終端 + QTYPE(2) + QCLASS(2)
-  if(i + 16 > (int)sizeof(p)) return;
-  const uint8_t ans[16] = {0xC0,0x0C, 0,1, 0,1, 0,0,0,0x3C, 0,4, 192,168,4,1}; // 名前ポインタ/A/IN/TTL60/IP
-  for(int k=0;k<16;k++) p[i+k] = ans[k];
-  dnsUdp.beginPacket(dnsUdp.remoteIP(), dnsUdp.remotePort());
-  dnsUdp.write(p, i + 16);
-  dnsUdp.endPacket();
+  static uint8_t p[512];
+  // 溜まっているDNS問い合わせを毎回まとめて処理（取りこぼし防止＝キャプティブ検出の成功率を上げる）
+  while(dnsUdp.parsePacket() > 0){
+    int len = dnsUdp.read(p, sizeof(p));
+    if(len < 12) continue;
+    p[2] = 0x81; p[3] = 0x80;          // フラグ: 応答・再帰可
+    p[6] = 0; p[7] = 1;                // ANCOUNT=1
+    p[8] = p[9] = p[10] = p[11] = 0;   // NSCOUNT/ARCOUNT=0
+    int i = 12;                        // 質問(QNAME)の末尾まで進む（ラベル長+1ずつ）
+    while(i < len && p[i] != 0){ i += p[i] + 1; }
+    i += 1 + 4;                        // 0終端 + QTYPE(2) + QCLASS(2)
+    if(i + 16 > (int)sizeof(p)) continue;
+    const uint8_t ans[16] = {0xC0,0x0C, 0,1, 0,1, 0,0,0,0x3C, 0,4, 192,168,4,1}; // A/IN/TTL60/192.168.4.1
+    for(int k=0;k<16;k++) p[i+k] = ans[k];
+    dnsUdp.beginPacket(dnsUdp.remoteIP(), dnsUdp.remotePort());
+    dnsUdp.write(p, i + 16);
+    dnsUdp.endPacket();
+  }
 }
 
 void setup(){
@@ -171,7 +181,7 @@ void setup(){
     while(WiFi.localIP() == IPAddress(0,0,0,0)){ delay(500); }
     Serial.print("[STA] Connected  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
-    showQR((String("http://")+WiFi.localIP().toString()+"/").c_str(), "SCAN to", "open");
+    showQR((String("http://")+WiFi.localIP().toString()+"/?go").c_str(), "SCAN or", "open:", (String("http://")+WiFi.localIP().toString()).c_str());
   } else {
     // 外: Arduinoが自前のWi-Fi(AP)を立てる。スマホをAP_SSIDにつなぎ http://192.168.4.1/
     Serial.println(forceAP ? "[AP] Forced by button" : "[AP] No home Wi-Fi -> Access Point");
@@ -184,7 +194,7 @@ void setup(){
     apMode = true;
     dnsUdp.begin(53);                 // 全ドメインを 192.168.4.1 へ＝キャプティブポータル
     Serial.println("[AP] captive DNS on :53");
-    showQR((String("WIFI:T:nopass;S:")+AP_SSID+";;").c_str(), "Wi-Fi:", AP_SSID);  // OLEDにAP名を表示
+    showQR((String("WIFI:T:nopass;S:")+AP_SSID+";;").c_str(), "Wi-Fi:", AP_SSID, "http://192.168.4.1/?go");  // OLEDにAP名＋開くアドレス(http付き)を表示
   }
   server.begin();
 }
@@ -314,14 +324,14 @@ void loop(){
     else if(path.startsWith("/rpg")){
       sendGzipPage(client, PAGE_GZ, PAGE_GZ_LEN);   // RPG_Quest
     }
-    else if(path=="/" || path=="/index.html"){
-      sendHtml(client, LAUNCHER_HTML);   // ゲーム選択画面
+    else if(path=="/" || path=="/index.html" || path.startsWith("/?")){
+      sendHtml(client, LAUNCHER_HTML);   // ゲーム選択画面（?付きURLでもOK＝キャッシュ回避用）
     }
     else if(apMode){
       // キャプティブポータル：未知URL（OSのネット接続確認など）は選択画面へ302リダイレクト
-      // → スマホがAPに繋いだ直後、自動でゲーム選択画面が開く
+      // → スマホがAPに繋いだ直後、自動でゲーム選択画面が開く。?go付きで古いキャッシュを確実に回避
       client.println("HTTP/1.1 302 Found");
-      client.println("Location: http://192.168.4.1/");
+      client.println("Location: http://192.168.4.1/?go");
       client.println("Cache-Control: no-store");
       client.println("Connection: close");
       client.println();

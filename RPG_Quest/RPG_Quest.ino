@@ -98,8 +98,9 @@ void playFx(const String& s){
 #include "webpage_gz.h" // RPGのHTMLをgzip圧縮したバイト列（PAGE_GZ / PAGE_GZ_LEN）。_gzip_page.py が webpage.h から生成
 #include "maps.h"      // /maps.json で配信するマップデータ（webpage.h から分離）
 
-// ===== OLEDにQRを表示（白地に黒モジュール＋余白＝スキャンしやすい）。右に2行ラベル =====
-void showQR(const char* text, const char* l1, const char* l2){
+// ===== OLEDにQRを表示（白地に黒モジュール＋余白）。右に説明2行＋アドレス（折り返し表示） =====
+// addr = 画面が自動で開かない時に手入力するアドレス。10文字ごとに折り返して下に表示する。
+void showQR(const char* text, const char* l1, const char* l2, const char* addr){
   QRCode qr; uint8_t qrbuf[qrcode_getBufferSize(3)];
   qrcode_initText(&qr, qrbuf, 3, ECC_MEDIUM, text);
   oled.clearDisplay();
@@ -109,8 +110,16 @@ void showQR(const char* text, const char* l1, const char* l2){
     if(qrcode_getModule(&qr, x, y))
       oled.fillRect(ox+x*scale, oy+y*scale, scale, scale, SSD1306_BLACK);
   oled.setTextColor(SSD1306_WHITE); oled.setTextSize(1);
-  oled.setCursor(67, 18); oled.print(l1);
-  oled.setCursor(67, 34); oled.print(l2);
+  const int tx = ox+sz+5;                 // 文字開始x=66（QRの右・黒地）。1行=最大10文字(約60px)
+  oled.setCursor(tx, 2);  oled.print(l1);
+  oled.setCursor(tx, 12); oled.print(l2);
+  int alen = strlen(addr);                // アドレスを10文字ずつ折り返して表示（長いURL/IPでも収まる）
+  for(int i=0, y=30; i<alen; i+=10, y+=10){
+    char buf[11]; int k=0;
+    for(; k<10 && (i+k)<alen; k++) buf[k]=addr[i+k];
+    buf[k]=0;
+    oled.setCursor(tx, y); oled.print(buf);
+  }
   oled.display();
 }
 
@@ -142,7 +151,7 @@ void setup(){
     while(WiFi.localIP() == IPAddress(0,0,0,0)){ delay(500); }
     Serial.print("[STA] Connected  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
-    showQR((String("http://")+WiFi.localIP().toString()+"/").c_str(), "SCAN to", "open");
+    showQR((String("http://")+WiFi.localIP().toString()+"/").c_str(), "SCAN or", "open:", (String("http://")+WiFi.localIP().toString()).c_str());
   } else {
     // 外: Arduinoが自前のWi-Fi(AP)を立てる。スマホをAP_SSIDにつなぎ http://192.168.4.1/
     Serial.println(forceAP ? "[AP] Forced by button" : "[AP] No home Wi-Fi -> Access Point");
@@ -152,7 +161,7 @@ void setup(){
     Serial.print("[AP] SSID: ");  Serial.print(AP_SSID);  Serial.println("  (open / no password)");
     Serial.print("[AP] join then  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
-    showQR((String("WIFI:T:nopass;S:")+AP_SSID+";;").c_str(), "Wi-Fi:", AP_SSID);  // OLEDにAP名を表示
+    showQR((String("WIFI:T:nopass;S:")+AP_SSID+";;").c_str(), "Wi-Fi:", AP_SSID, "http://192.168.4.1");  // OLEDにAP名＋開くアドレス(http付き)を表示
   }
   server.begin();
 }
@@ -172,6 +181,7 @@ void sendGzipPage(WiFiClient& client, const unsigned char* data, size_t len){
   size_t off = 0; unsigned long t0 = millis();
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html; charset=UTF-8");
+  client.println("Cache-Control: no-store");   // 古い版をキャッシュ表示させない
   client.println("Content-Encoding: gzip");
   client.println("Content-Length: " + String((unsigned long)len));
   client.println("Connection: close");

@@ -19,6 +19,9 @@
 #include <WiFiS3.h>
 #include <Adafruit_NeoPixel.h>
 #include "Arduino_LED_Matrix.h"   // 本体内蔵 12x8 LEDマトリクス
+#include <Wire.h>                 // I2C（OLED用）
+#include <Adafruit_SSD1306.h>     // OLED SSD1306 128x64（QR表示）
+#include <qrcode.h>               // QRコード生成（ricmoo QRCode）
 #include "arduino_secrets.h"
 
 char ssid[] = SECRET_SSID;
@@ -28,6 +31,9 @@ char pass[] = SECRET_PASS;
 const char* AP_SSID = "GameSelect";
 const char* AP_PASS = "gameselect";   // WPA2のため8文字以上。スマホはこのSSIDにつなぐ
 WiFiServer server(80);
+WiFiUDP    dnsUdp;                          // キャプティブポータル用の簡易DNS（AP時のみ）
+bool       apMode = false;                  // AP(外でプレイ)モードか
+Adafruit_SSD1306 oled(128, 64, &Wire, -1);  // QR表示用OLED（I2C SDA/SCL, アドレス0x3C）
 
 // ===== ハードウェア =====
 // ジョイスティック: VRx->A0  VRy->A1  SW->D2(INPUT_PULLUP)  VCC->5V  GND->GND
@@ -97,12 +103,58 @@ void playFx(const String& s){
 #include "maze_gz.h"   // 迷路ページをgzip圧縮したバイト列（MAZE_GZ / MAZE_GZ_LEN）。_gzip_maze.py が maze.html から生成
 #include "launcher.h"  // 起動時のゲーム選択画面（LAUNCHER_HTML, 生文字列・raw配信）
 
+// ===== OLEDにQRを表示（白地に黒モジュール＋余白＝スキャンしやすい）。右に2行ラベル =====
+void showQR(const char* text, const char* l1, const char* l2){
+  QRCode qr; uint8_t qrbuf[qrcode_getBufferSize(3)];
+  qrcode_initText(&qr, qrbuf, 3, ECC_MEDIUM, text);
+  oled.clearDisplay();
+  const int scale=2, sz=qr.size*scale, ox=3, oy=(64-sz)/2;
+  oled.fillRect(0, 0, ox+sz+2, 64, SSD1306_WHITE);        // 左側を白ブロックに＝QR周囲に余白(クワイエットゾーン)
+  for(int y=0;y<qr.size;y++) for(int x=0;x<qr.size;x++)
+    if(qrcode_getModule(&qr, x, y))
+      oled.fillRect(ox+x*scale, oy+y*scale, scale, scale, SSD1306_BLACK);
+  oled.setTextColor(SSD1306_WHITE); oled.setTextSize(1);
+  oled.setCursor(67, 18); oled.print(l1);
+  oled.setCursor(67, 34); oled.print(l2);
+  oled.display();
+}
+
+// ===== キャプティブポータル：どのドメイン問い合わせにも 192.168.4.1 を返す簡易DNS =====
+void handleDNS(){
+  int n = dnsUdp.parsePacket();
+  if(n < 12) return;
+  static uint8_t p[256];
+  int len = dnsUdp.read(p, sizeof(p));
+  if(len < 12) return;
+  p[2] = 0x81; p[3] = 0x80;          // フラグ: 応答(QR=1)・再帰可
+  p[6] = 0; p[7] = 1;                // ANCOUNT=1
+  p[8] = p[9] = p[10] = p[11] = 0;   // NSCOUNT/ARCOUNT=0
+  int i = 12;                        // 質問(QNAME)の末尾まで進む（ラベル長+1ずつ）
+  while(i < len && p[i] != 0){ i += p[i] + 1; }
+  i += 1 + 4;                        // 0終端 + QTYPE(2) + QCLASS(2)
+  if(i + 16 > (int)sizeof(p)) return;
+  const uint8_t ans[16] = {0xC0,0x0C, 0,1, 0,1, 0,0,0,0x3C, 0,4, 192,168,4,1}; // 名前ポインタ/A/IN/TTL60/IP
+  for(int k=0;k<16;k++) p[i+k] = ans[k];
+  dnsUdp.beginPacket(dnsUdp.remoteIP(), dnsUdp.remotePort());
+  dnsUdp.write(p, i + 16);
+  dnsUdp.endPacket();
+}
+
 void setup(){
   Serial.begin(9600);
   pinMode(PIN_SW, INPUT_PULLUP);
   pinMode(PIN_BUZZ, OUTPUT);
   strip.begin(); strip.show();   // 全消灯
   matrix.begin();                // 内蔵LEDマトリクス開始
+  Wire.begin();
+  // OLEDのI2Cアドレスは 0x3C が多いが 0x3D の個体もあるので両方試す
+  if(oled.begin(SSD1306_SWITCHCAPVCC, 0x3C) || oled.begin(SSD1306_SWITCHCAPVCC, 0x3D)){
+    Serial.println("[OLED] ready");
+  } else {
+    Serial.println("[OLED] not found at 0x3C/0x3D - check SDA/SCL pins(not A4/A5), VCC, GND");
+  }
+  oled.clearDisplay(); oled.setTextColor(SSD1306_WHITE); oled.setTextSize(1);
+  oled.setCursor(0, 28); oled.print("Wi-Fi setting up..."); oled.display();
 
   // --- Wi-Fi: 家ではルーターに接続(STA)、外ではArduino自身がアクセスポイント(AP)になる ---
   // ボタン(ジョイスティックSW)を押しながらリセットすると、待たずに即AP（外での持ち出し用）。
@@ -120,6 +172,7 @@ void setup(){
     while(WiFi.localIP() == IPAddress(0,0,0,0)){ delay(500); }
     Serial.print("[STA] Connected  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
+    showQR((String("http://")+WiFi.localIP().toString()+"/").c_str(), "SCAN to", "open");
   } else {
     // 外: Arduinoが自前のWi-Fi(AP)を立てる。スマホをAP_SSIDにつなぎ http://192.168.4.1/
     Serial.println(forceAP ? "[AP] Forced by button" : "[AP] No home Wi-Fi -> Access Point");
@@ -130,6 +183,10 @@ void setup(){
     Serial.print("  PASS: ");     Serial.println(AP_PASS);
     Serial.print("[AP] join then  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
+    apMode = true;
+    dnsUdp.begin(53);                 // 全ドメインを 192.168.4.1 へ＝キャプティブポータル
+    Serial.println("[AP] captive DNS on :53");
+    showQR((String("WIFI:T:WPA;S:")+AP_SSID+";P:"+AP_PASS+";;").c_str(), "SCAN to", "join&play");
   }
   server.begin();
 }
@@ -182,6 +239,7 @@ void sendHtml(WiFiClient& client, const char* data){
 }
 
 void loop(){
+  if(apMode) handleDNS();   // キャプティブポータルのDNS応答（AP時のみ）
   serviceSeq();   // メロディを非ブロッキングで進める
   // LEDの自動消灯（非ブロッキング）
   if(ledOffAt && millis()>ledOffAt){ strip.clear(); strip.show(); ledOffAt=0; }

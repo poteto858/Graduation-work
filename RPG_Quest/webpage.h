@@ -321,6 +321,7 @@ function loadMap(name, sx, sy){
     for(let y=0;y<map.length;y++)for(let x=0;x<map[y].length;x++)
       if(map[y][x]==="P"){ player.x=x*TILE+(TILE-player.size)/2; player.y=y*TILE+(TILE-player.size)/2; }
   }
+  nudgeToFloor();   // 壁の中に置かれたら近くの床へ（壊れた復活地点の保険）
   mode="field";
 }
 
@@ -362,6 +363,19 @@ function isWall(px,py){
     if(px<nx+ns && px+s>nx && py<ny+ns && py+s>ny) return true;
   }
   return false;
+}
+
+// 置いた場所が壁なら近くの床タイルへ逃がす（壊れた復活地点などの保険＝起動スタック防止）
+function nudgeToFloor(){
+  if(!isWall(player.x, player.y)) return;
+  const cx=Math.floor((player.x+player.size/2)/TILE), cy=Math.floor((player.y+player.size/2)/TILE);
+  for(let r=1;r<=10;r++) for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+    if(Math.max(Math.abs(dx),Math.abs(dy))!==r) continue;   // 外側のリングだけ走査
+    const tx=cx+dx, ty=cy+dy;
+    if(ty<0||tx<0||!map[ty]||tx>=map[ty].length) continue;
+    const px=tx*TILE+(TILE-player.size)/2, py=ty*TILE+(TILE-player.size)/2;
+    if(!isWall(px,py)){ player.x=px; player.y=py; return; }
+  }
 }
 
 function onGrass(){
@@ -665,8 +679,12 @@ function confirmSvc(){ const s=service; if(s.phase==="menu"){ const a=s.actions[
 function clearMoveInput(){ keys['w']=keys['s']=keys['a']=keys['d']=false; tapDir=null; }  // 遷移時に押しっぱなし入力を解除
 function closeService(){
   const b=service.b, d=buildingDoor(b);
-  const fx=d?d.dx:b.x+1, fy=d?d.dy+1:b.y+2;   // ドアの真下へ（建物サイズに追従。大聖堂5×3でも壁の中に出ない）
+  // ドアのタイルへ戻し、_onDoor=true のままにする。
+  // → 入力を上に入れっぱなしでも建物の壁に当たって止まり、施設が即再オープンしない（スタック防止）。
+  //   下へ抜けると _onDoor が解除され、もう一度ドアに乗れば正しく再オープンする。
+  const fx=d?d.dx:b.x+1, fy=d?d.dy:b.y+1;
   player.x=fx*TILE+(TILE-player.size)/2; player.y=fy*TILE+(TILE-player.size)/2;
+  player._onDoor=true;
   mode="field"; service=null; clearMoveInput();
 }
 function innStay(){

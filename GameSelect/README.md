@@ -34,7 +34,12 @@ Arduino が「どのURLが来たか」で配信を変えます（2つの大き�
 - そのあと GameSelect を書き込み直します（取り込みを忘れると古い版が焼かれます）。
 
 ## 操作・配線
-RPG_Quest と同じ（ジョイスティック VRx→A0 / VRy→A1 / SW→D2、パッシブブザー→D9、WS2812→D6）。
+RPG_Quest と同じ（ジョイスティック VRx→A0 / VRy→A1 / SW→D2、パッシブブザー→D9、WS2812→D6）に加え、**QR表示用OLED**を I2C で追加。
+
+- **OLED（SSD1306 128×64）**：接続用QRを表示（外で遊ぶ用）。`SDA→SDA / SCL→SCL`（I2C・アドレス0x3C）、`VCC→3.3V`、`GND→GND`。要ライブラリ：**Adafruit SSD1306 / Adafruit GFX / QRCode**。
+  - AP時：Wi-Fi参加QR（`GameSelect`）を表示／STA時：`http://<IP>/` のQRを表示。
+- **キャプティブポータル**：APにつなぐと**自動でゲーム選択画面が開く**（簡易DNSで全ドメインを 192.168.4.1 に誘導）。②のURLを開く操作は不要。
+
 > ハードが無くてもキーボード（WASD/矢印）・スマホタップで全機能が動作します。
 
 ## ビルド

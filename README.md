@@ -41,8 +41,10 @@ flowchart LR
 | ジョイスティックモジュール | 移動・メニュー操作 | VRx→A0 / VRy→A1 / SW→D2 | 全作品 |
 | パッシブブザー ＋ ボリューム | 効果音と音量調整 | 信号→D9 / ブザー→ボリューム→GND（直列） | RPG_Quest / GameSelect |
 | WS2812 RGBテープ | イベントに応じて発光 | DIN→D6 | RPG_Quest / GameSelect |
+| OLED（SSD1306 128×64） | 接続用QRを表示（外で遊ぶ用） | SDA→SDA / SCL→SCL（I2C・0x3C）, VCC→3.3V, GND→GND | GameSelect |
 
 > 迷路ゲームはジョイスティックのみ（効果音はブラウザのWeb Audioで再生）。
+> OLEDは要ライブラリ（Adafruit SSD1306 / Adafruit GFX / QRCode）。
 > ハードが無くても、キーボード（WASD/矢印）・スマホタップで全機能が動作します。
 
 ---
@@ -67,15 +69,19 @@ flowchart LR
 
 家のWi-Fiが無い屋外でも、**Arduino自身がWi-Fiアクセスポイント(AP)になる**ので単体で遊べます。
 
-- **電源**：USBモバイルバッテリーをUSB-Cに挿すだけ（基板にもArduino経由で給電。別の電源モジュール不要）。
-- **接続**：起動時にルーターが見つからなければ**自動でAPモード**（ジョイスティックのボタンを押しながらリセットで即AP）。スマホをQRでつなぐだけ。
-- 各スケッチのAP名はフォルダ名（`MazeGame` / `RPG_Quest` / `GameSelect`）。下のQRは**統合版(GameSelect)**用です。
+- **電源**：USBモバイルバッテリーをUSB-Cに挿すだけ（別の電源モジュール不要）。
+- **接続**：起動時にルーターが見つからなければ**自動でAPモード**（ボタン押し起動で即AP）。
+- **キャプティブポータル**：①のWi-Fiにつなぐと、ホテルWi-Fiのログイン画面のように**自動でゲーム選択画面が開きます**（②のURLを開く操作は不要。開かない時だけ②）。
+- **OLED表示**：接続用QRは**本体のOLEDにも表示**されるので、印刷した紙が無くてもその場で読み取れます。
+- 各スケッチのAP名はフォルダ名（`MazeGame` / `RPG_Quest` / `GameSelect`）。下のQRは統合版(GameSelect)用。
 
 <p align="center">
-  <img src="GameSelect/qr_outdoor.png" width="520" alt="外プレイ用QR：①Wi-Fi接続 ②ゲームを開く">
+  <img src="GameSelect/qr_outdoor.png" width="520" alt="外プレイ用QR：①Wi-Fiに接続すると自動でゲームが開く">
 </p>
 
 | 手順 | 内容 |
 |------|------|
-| ① | スマホのカメラで左のQRを読み、Wi-Fi **`GameSelect`**（パスワード `gameselect`）に接続 |
-| ② | 右のQRを読み、`http://192.168.4.1/` を開く → ゲーム選択画面 |
+| ① | スマホで左のQR（またはOLEDのQR）を読み、Wi-Fi **`GameSelect`**（パスワード `gameselect`）に接続 → **自動でゲーム選択画面が開く** |
+| ②（保険） | 自動で開かない場合は右のQRを読み、`http://192.168.4.1/` を開く |
+
+> iPhoneは接続時に「インターネット未接続」警告が出ます。**「このまま接続」**を選べばOK（選ばないと切れます）。

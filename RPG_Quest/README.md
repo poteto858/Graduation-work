@@ -9,6 +9,12 @@ Arduino UNO R4 WiFi を **Webサーバー**にして、PC・スマホのブラ�
   <img src="報告画像/fig2_party.png" width="420" alt="フィールドを仲間と歩く">
 </p>
 
+> 統合版（[GameSelect](../GameSelect/)）では、起動時に下の画面で迷路 / RPG を選んで遊べます。
+
+<p align="center">
+  <img src="報告画像/launcher.png" width="420" alt="ゲーム選択画面（統合版）">
+</p>
+
 ---
 
 ## スクリーンショット

@@ -10,6 +10,12 @@ Arduino UNO R4 WiFi を **Webサーバー**にして、PC・スマホのブラ�
   <img src="報告画像/maze_play.png" width="45%" alt="プレイ画面">
 </p>
 
+> 統合版（[GameSelect](../GameSelect/)）では、起動時に下の画面で迷路 / RPG を選んで遊べます。
+
+<p align="center">
+  <img src="報告画像/launcher.png" width="60%" alt="ゲーム選択画面（統合版）">
+</p>
+
 ## 主な機能
 - 3ステージ（だんだん広く・複雑に）／クリアタイム計測／ベストタイム保存（localStorage）
 - コイン集め：**全コイン取得でゴール（出口ポータル）が解放**（未取得は南京錠でロック表示）

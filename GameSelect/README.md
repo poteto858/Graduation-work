@@ -3,6 +3,16 @@
 Arduino 1台で **迷路ゲーム（MazeGame）** と **RPG_Quest** の2作を配信する統合スケッチ。
 起動してアクセスすると、まず **ゲーム選択画面** が出て、遊ぶ作品を選べます。
 
+<p align="center">
+  <img src="報告画像/launcher.png" width="460" alt="ゲーム選択画面">
+</p>
+
+### 選べる2作（プレイ画面）
+<p>
+  <img src="../MazeGame/報告画像/maze_play.png" width="45%" alt="迷路ゲーム">
+  <img src="../RPG_Quest/報告画像/fig3_battle.png" width="45%" alt="RPG_Quest">
+</p>
+
 ## しくみ（URLパスで出し分け）
 Arduino が「どのURLが来たか」で配信を変えます（2つの大きな JS を混ぜないので名前衝突がない）。
 

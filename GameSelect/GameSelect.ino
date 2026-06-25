@@ -184,7 +184,7 @@ void setup(){
     apMode = true;
     dnsUdp.begin(53);                 // 全ドメインを 192.168.4.1 へ＝キャプティブポータル
     Serial.println("[AP] captive DNS on :53");
-    showQR((String("WIFI:T:nopass;S:")+AP_SSID+";;").c_str(), "SCAN to", "join&play");
+    showQR((String("WIFI:T:nopass;S:")+AP_SSID+";;").c_str(), "Wi-Fi:", AP_SSID);  // OLEDにAP名を表示
   }
   server.begin();
 }
@@ -314,9 +314,21 @@ void loop(){
     else if(path.startsWith("/rpg")){
       sendGzipPage(client, PAGE_GZ, PAGE_GZ_LEN);   // RPG_Quest
     }
+    else if(path=="/" || path=="/index.html"){
+      sendHtml(client, LAUNCHER_HTML);   // ゲーム選択画面
+    }
+    else if(apMode){
+      // キャプティブポータル：未知URL（OSのネット接続確認など）は選択画面へ302リダイレクト
+      // → スマホがAPに繋いだ直後、自動でゲーム選択画面が開く
+      client.println("HTTP/1.1 302 Found");
+      client.println("Location: http://192.168.4.1/");
+      client.println("Cache-Control: no-store");
+      client.println("Connection: close");
+      client.println();
+      client.stop();
+    }
     else{
-      // 起動時 "/"（および未知パス）は ゲーム選択画面（生HTMLをそのまま配信）
-      sendHtml(client, LAUNCHER_HTML);
+      sendHtml(client, LAUNCHER_HTML);   // STA時の未知URLは選択画面
     }
   }
 }

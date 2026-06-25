@@ -36,8 +36,9 @@ Arduino UNO R4 WiFi を **Webサーバー**にして、PC・スマホのブラ�
 | 部品 | Arduino |
 |------|---------|
 | ジョイスティック VRx / VRy / SW | A0 / A1 / D2（VCC→5V, GND→GND） |
+| OLED（SSD1306 128×64・接続用QR表示） | SDA / SCL（I2C・0x3C, VCC→3.3V, GND→GND）／要ライブラリ Adafruit SSD1306・GFX・QRCode |
 
-> ブザー・LEDは使いません（効果音はブラウザの Web Audio で再生）。
+> ブザー・LEDは使いません（効果音はブラウザの Web Audio で再生）。OLEDは外プレイの接続用QRを表示します。
 
 ## ビルド
 1. リポジトリ直下の `arduino_secrets.h.example` を `arduino_secrets.h` にコピーし、このフォルダに置いてWi-Fi（2.4GHz帯）情報を記入。

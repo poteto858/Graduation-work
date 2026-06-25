@@ -18,21 +18,46 @@
 #include <WiFiS3.h>
 #include "arduino_secrets.h"
 #include "maze_gz.h"   // 迷路ページをgzip圧縮したバイト列（MAZE_GZ / MAZE_GZ_LEN）。_gzip_maze.py が maze.html から生成
+#include <Wire.h>                 // I2C（OLED用）
+#include <Adafruit_SSD1306.h>     // OLED SSD1306 128x64（接続用QR表示）
+#include <qrcode.h>               // QRコード生成（ricmoo QRCode）
 
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 // 外での持ち出しプレイ用: Arduino自身が立てるWi-Fi(アクセスポイント)。配る前提の公開情報。
 const char* AP_SSID = "MazeGame";   // パスワード無し(オープン)で立てる（R4でも確実に接続できる）
 WiFiServer server(80);
+Adafruit_SSD1306 oled(128, 64, &Wire, -1);  // 接続用QR表示OLED（I2C SDA/SCL, アドレス0x3C）
 
 // ジョイスティック: VRx->A0  VRy->A1  SW->D2(INPUT_PULLUP)  VCC->5V  GND->GND
 const int PIN_VRX = A0;
 const int PIN_VRY = A1;
 const int PIN_SW  = 2;
 
+// ===== OLEDにQRを表示（白地に黒モジュール＋余白＝スキャンしやすい）。右に2行ラベル =====
+void showQR(const char* text, const char* l1, const char* l2){
+  QRCode qr; uint8_t qrbuf[qrcode_getBufferSize(3)];
+  qrcode_initText(&qr, qrbuf, 3, ECC_MEDIUM, text);
+  oled.clearDisplay();
+  const int scale=2, sz=qr.size*scale, ox=3, oy=(64-sz)/2;
+  oled.fillRect(0, 0, ox+sz+2, 64, SSD1306_WHITE);
+  for(int y=0;y<qr.size;y++) for(int x=0;x<qr.size;x++)
+    if(qrcode_getModule(&qr, x, y))
+      oled.fillRect(ox+x*scale, oy+y*scale, scale, scale, SSD1306_BLACK);
+  oled.setTextColor(SSD1306_WHITE); oled.setTextSize(1);
+  oled.setCursor(67, 18); oled.print(l1);
+  oled.setCursor(67, 34); oled.print(l2);
+  oled.display();
+}
+
 void setup(){
   Serial.begin(9600);
   pinMode(PIN_SW, INPUT_PULLUP);
+  Wire.begin();
+  if(oled.begin(SSD1306_SWITCHCAPVCC, 0x3C) || oled.begin(SSD1306_SWITCHCAPVCC, 0x3D)) Serial.println("[OLED] ready");
+  else Serial.println("[OLED] not found at 0x3C/0x3D - check SDA/SCL pins(not A4/A5), VCC, GND");
+  oled.clearDisplay(); oled.setTextColor(SSD1306_WHITE); oled.setTextSize(1);
+  oled.setCursor(0, 28); oled.print("Wi-Fi setting up..."); oled.display();
 
   // --- Wi-Fi: 家ではルーターに接続(STA)、外ではArduino自身がAPになる ---
   // ボタン(ジョイスティックSW)を押しながらリセットすると、待たずに即AP（外での持ち出し用）。
@@ -49,6 +74,7 @@ void setup(){
     while(WiFi.localIP() == IPAddress(0,0,0,0)){ delay(500); }
     Serial.print("[STA] Connected  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
+    showQR((String("http://")+WiFi.localIP().toString()+"/").c_str(), "SCAN to", "open");
   } else {
     Serial.println(forceAP ? "[AP] Forced by button" : "[AP] No home Wi-Fi -> Access Point");
     int st = WiFi.beginAP(AP_SSID);   // パスワード無し(オープン)
@@ -57,6 +83,7 @@ void setup(){
     Serial.print("[AP] SSID: ");  Serial.print(AP_SSID);  Serial.println("  (open / no password)");
     Serial.print("[AP] join then  ->  http://");
     Serial.print(WiFi.localIP()); Serial.println("/");
+    showQR((String("WIFI:T:nopass;S:")+AP_SSID+";;").c_str(), "Wi-Fi:", AP_SSID);  // OLEDにAP名を表示
   }
   server.begin();
 }

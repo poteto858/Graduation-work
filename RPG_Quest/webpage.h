@@ -386,7 +386,7 @@ function loadMap(name, sx, sy){
   buildings=(m.buildings||[]);
   darkArea=!!m.dark;
   mapTheme=m.theme||"";
-  npcs=(m.npcs||[]).map(n=>({...n}));
+  npcs=(m.npcs||[]).map(n=>({...n})).filter(n=> !(n.event==="warrior" && flags.warriorJoined));   // 加入済みの戦士はもう出さない
   npcs.forEach(n=>{
     n.imgKey = n.kind==="elder" ? "elder" : (n.kind==="woman" ? "woman" : "villager");   // 村人の本格立ち絵
     n.spr = n.kind==="elder" ? makeSprite(ELDER, ELDER_PAL, CHAR)
@@ -410,19 +410,26 @@ function buildingDoor(b){
   const w=b.w||3, h=b.h||2;
   return { dx: b.x + (w>>1), dy: b.y + (h-1) };
 }
+// 扉タイル判定。偶数幅の建物（大聖堂=幅6）は見た目の中央が2タイルにまたがるので、中央2タイルを扉にして入りやすくする
+function isDoorTile(b, tx, ty){
+  if(b.deco) return false;
+  const w=b.w||3, h=b.h||2;
+  if(ty !== b.y+(h-1)) return false;
+  if(w%2===0){ const c=b.x+w/2; return tx===c-1 || tx===c; }   // 偶数幅＝中央2タイル
+  return tx === b.x+(w>>1);                                    // 奇数幅＝中央1タイル
+}
 function buildingWall(tx,ty){
   for(const b of buildings){
     const w=b.w||3, h=b.h||2;
     if(tx>=b.x && tx<b.x+w && ty>=b.y && ty<b.y+h){
-      const d=buildingDoor(b);
-      if(d && tx===d.dx && ty===d.dy) return false;  // ドアは通れる
+      if(isDoorTile(b,tx,ty)) return false;  // ドアは通れる（偶数幅は中央2タイル）
       return true;
     }
   }
   return false;
 }
 function doorAt(tx,ty){
-  for(const b of buildings){ const d=buildingDoor(b); if(d && tx===d.dx && ty===d.dy) return b; }
+  for(const b of buildings){ if(isDoorTile(b,tx,ty)) return b; }
   return null;
 }
 
@@ -831,6 +838,7 @@ function eventRecruitWarrior(){
   ], ()=>{
     flags.warriorJoined=true;
     if(!party.some(m=>m.role==="warrior")) recruit(makeWarrior());   // 二重加入ガード
+    npcs=npcs.filter(n=>n.event!=="warrior");   // 加入したら その場から消す
     saveGame();
   });
 }
@@ -1635,8 +1643,13 @@ function drawParty(){
 
 function drawNpc(n){
   let topY;
-  const im = n.imgKey && NPCIMG[n.imgKey];
-  if(im && im.complete && im.naturalWidth){                       // 本格立ち絵（画像）
+  const cset = n.char && CHARIMG[n.char];                         // ガルド等＝パーティと同じ立ち絵
+  const im = n.imgKey && NPCIMG[n.imgKey];                        // 村人の立ち絵
+  if(cset && cset.d && cset.d.complete && cset.d.naturalWidth){
+    const wx=n.x*TILE+(TILE-player.size)/2, wy=n.y*TILE+(TILE-player.size)/2;
+    drawCharImg(n.char, "down", wx, wy, false);                   // 足元中心で描画（武器の非対称も補正）
+    topY=Math.round(wy+player.size-104)+16;
+  }else if(im && im.complete && im.naturalWidth){                 // 本格立ち絵（画像）
     const dh=110, dw=Math.round(im.naturalWidth*dh/im.naturalHeight);   // 勇者(104px)とそろう存在感
     const dx=Math.round(n.x*TILE+TILE/2-dw/2);
     topY=Math.round(n.y*TILE+TILE-dh+8);                          // 足をタイル下端付近に

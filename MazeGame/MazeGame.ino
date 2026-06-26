@@ -122,6 +122,7 @@ void loop(){
   if(client){
     client.setTimeout(40);                       // 読み取り待ちを短く
     String reqLine = client.readStringUntil('\n');
+    if(reqLine.length()==0){ client.stop(); return; }   // 空接続(プローブ等)は即切断
     for(int i=0;i<20;i++){ String h=client.readStringUntil('\n'); if(h.length()<=1) break; }
     int sp1=reqLine.indexOf(' '), sp2=reqLine.indexOf(' ', sp1+1);
     String path = (sp1>=0&&sp2>sp1) ? reqLine.substring(sp1+1, sp2) : "/";
@@ -145,8 +146,14 @@ void loop(){
       client.println();
       client.stop();
     }
-    else{
+    else if(path=="/" || path=="/index.html" || path.startsWith("/?")){
       sendGzipPage(client, MAZE_GZ, MAZE_GZ_LEN);   // 迷路ゲーム本体
+    }
+    else{
+      client.println("HTTP/1.1 404 Not Found");     // 未知URLには重いページを返さず即切る
+      client.println("Connection: close");
+      client.println();
+      client.stop();
     }
   }
 }

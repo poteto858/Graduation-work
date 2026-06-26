@@ -271,6 +271,7 @@ void loop(){
     client.setTimeout(40);              // 読み取り待ちを短く（既定1秒だと詰まる）
     // リクエスト1行目だけ読んでパスを取得
     String reqLine = client.readStringUntil('\n');
+    if(reqLine.length()==0){ client.stop(); return; }   // 空接続(プローブ等)は即切断
     // 残りのヘッダを読み飛ばす（最大20行・空行で終了）
     for(int i=0;i<20;i++){
       String h=client.readStringUntil('\n');

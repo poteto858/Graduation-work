@@ -203,29 +203,36 @@ function buildSprites(){
 // マップは maps.json に分離し、起動時に /maps.json から読み込む（下の MAPS）。
 // 記号: . 草地 / T 木 / W 水 / R 岩 / H 家 / P 開始 / G,C,N,B,D,K=出入口 / E=救出 / Z=玉座 / c=赤絨毯 / f,l,o,s=装飾
 let MAPS={};   // {field,cave,area2,town,town2,road,castle} を /maps.json から取得
+// 敵：spr=スプライトキー / grp=最大出現数 / moves=敵固有の特殊行動 / moveChance=特殊行動の確率
+//   moves の kind: "heavy"(強単体) / "all"(全体・mult倍率) / "healSelf"(自己回復・power)
+//   tint=色変え, evasion=回避率, fleeChance=毎ターン逃走率（レアモンスター用）
 const GAME_DATA={
-  // 敵（戦闘）。spr はスプライトキー
   enemies:[
-    { name:"ブルン",     spr:"slime", maxhp:8,  atk:7,  def:3, exp:3,  gold:2,  weak:["火"],        resist:[] },
-    { name:"ヤミバット", spr:"bat",   maxhp:13, atk:10, def:4, exp:6,  gold:5,  weak:["氷"],        resist:["火"] },
-    { name:"ホネナイト", spr:"bone",  maxhp:20, atk:15, def:7, exp:13, gold:11, weak:["火"],        resist:["氷"] }
+    { name:"ブルン",     spr:"slime", maxhp:8,  atk:7,  def:3, exp:3,  gold:2,  weak:["火"], resist:[],     grp:3 },
+    { name:"ヤミバット", spr:"bat",   maxhp:13, atk:10, def:4, exp:6,  gold:5,  weak:["氷"], resist:["火"], grp:2 },
+    { name:"ホネナイト", spr:"bone",  maxhp:20, atk:15, def:7, exp:13, gold:11, weak:["火"], resist:["氷"], grp:2 }
   ]
 };
-// 魔王（ラスボス）。専用ドット絵(maoh)を使用
-const MAOH={ name:"まおう", spr:"maoh", maxhp:120, atk:28, def:12, exp:200, gold:300, weak:[], resist:[], big:true };
-// 中ボス：ゲヘナ将（東の洞窟最奥でエリアへの道を塞ぐ関門）
-const GEHENA={ name:"ゲヘナ将", spr:"hellgeneral", maxhp:64, atk:23, def:17, exp:85, gold:100, weak:["氷"], resist:["火","雷"], big:true };
-// エリアの強敵（中くらい）
+// レアモンスター：ゴールドブルン（守備・回避が高く逃げやすいが、倒すと大量の経験値）
+const GOLD_SLIME={ name:"ゴールドブルン", spr:"slime", tint:"#ffd23f", maxhp:10, atk:6, def:60, exp:500, gold:120,
+                   weak:[], resist:[], grp:1, evasion:0.6, fleeChance:0.45 };
+// 魔王（ラスボス）。専用ドット絵(maoh)＋固有行動
+const MAOH={ name:"まおう", spr:"maoh", maxhp:120, atk:28, def:12, exp:200, gold:300, weak:[], resist:[], big:true, moveChance:0.6,
+  moves:[{name:"あんこくは",kind:"all",mult:0.9},{name:"こんとんのいちげき",kind:"heavy"},{name:"やみのちから",kind:"healSelf",power:25}] };
+// 中ボス：ゲヘナ将（洞窟最奥の関門）＋固有行動
+const GEHENA={ name:"ゲヘナ将", spr:"hellgeneral", maxhp:64, atk:23, def:17, exp:85, gold:100, weak:["氷"], resist:["火","雷"], big:true, moveChance:0.55,
+  moves:[{name:"じごくのほのお",kind:"all",mult:0.8},{name:"おたけび",kind:"heavy"}] };
+// エリアの強敵（敵固有の行動つき）
 const E_AREA=[
-  { name:"クサレビト",   spr:"rotcorpse",         maxhp:32, atk:16, def:9,  exp:19, gold:16, weak:["火"],       resist:["氷"] },
-  { name:"ヒトダマギ",   spr:"soulflame",         maxhp:27, atk:18, def:8,  exp:24, gold:22, weak:["火"],       resist:["氷"] },
-  { name:"ハカモリグモ", spr:"gravespider",       maxhp:38, atk:19, def:10, exp:33, gold:38, weak:["火","氷"], resist:["雷"] }
+  { name:"クサレビト",   spr:"rotcorpse",   maxhp:32, atk:16, def:9,  exp:19, gold:16, weak:["火"],       resist:["氷"], grp:2, moves:[{name:"どくのいき",kind:"all",mult:0.6}] },
+  { name:"ヒトダマギ",   spr:"soulflame",   maxhp:27, atk:18, def:8,  exp:24, gold:22, weak:["火"],       resist:["氷"], grp:2, moves:[{name:"おにび",kind:"heavy"}] },
+  { name:"ハカモリグモ", spr:"gravespider", maxhp:38, atk:19, def:10, exp:33, gold:38, weak:["火","氷"], resist:["雷"], grp:2, moves:[{name:"ねばつくいと",kind:"heavy"}] }
 ];
-// 道の強敵（魔王城へ近づくほど強い）
+// 道の強敵（魔王城へ近づくほど強い・敵固有の行動つき）
 const E_ROAD=[
-  { name:"ザンギル斬兵", spr:"greatswordsoldier", maxhp:46, atk:22, def:11, exp:48, gold:50,  weak:["氷"], resist:["火"] },
-  { name:"ガオウレオン", spr:"infernolion",       maxhp:58, atk:24, def:13, exp:70, gold:80,  weak:["氷"], resist:["火"] },
-  { name:"ノクスナイト", spr:"darkknight",        maxhp:70, atk:26, def:16, exp:92, gold:115, weak:["火"], resist:["氷","雷"] }
+  { name:"ザンギル斬兵", spr:"greatswordsoldier", maxhp:46, atk:22, def:11, exp:48, gold:50,  weak:["氷"], resist:["火"],       moves:[{name:"だいかいてん",kind:"all",mult:0.7}] },
+  { name:"ガオウレオン", spr:"infernolion",       maxhp:58, atk:24, def:13, exp:70, gold:80,  weak:["氷"], resist:["火"],       moves:[{name:"ほのおのいぶき",kind:"all",mult:0.7}] },
+  { name:"ノクスナイト", spr:"darkknight",        maxhp:70, atk:26, def:16, exp:92, gold:115, weak:["火"], resist:["氷","雷"], moveChance:0.5, moves:[{name:"あんこくぎり",kind:"heavy"}] }
 ];
 
 // ====== 商品・装備データ ======
@@ -324,6 +331,24 @@ function makePriest(){  // 修道女（シスター）：回復・補助
                    {name:"まもりのうた",mp:5,kind:"buffDef"},
                    {name:"ちからのうた",mp:5,kind:"buffAtk"}] };
 }
+// レベルアップで覚える特技/呪文（5レベルごと）。kind="phys"は特技に、それ以外は呪文に追加。
+const LEARN = {
+  hero:    { 5:{name:"ためる",mp:0,kind:"buffAtk"},
+             10:{name:"いなずま",mp:7,kind:"mag",power:24,elem:"雷"},
+             15:{name:"オーラぎり",mp:0,kind:"phys",mult:1.7,elem:"無"},
+             20:{name:"いやしのひかり",mp:9,kind:"healAll",power:18} },
+  mage:    { 5:{name:"ほのおのうず",mp:8,kind:"magAll",power:14,elem:"火"},
+             10:{name:"いなずま",mp:9,kind:"mag",power:30,elem:"雷"},
+             15:{name:"ふぶき",mp:13,kind:"magAll",power:22,elem:"氷"},
+             20:{name:"メテオ",mp:20,kind:"magAll",power:34,elem:"火"} },
+  warrior: { 5:{name:"かぶとわり",mp:0,kind:"phys",mult:1.5,elem:"無"},
+             10:{name:"したつき",mp:0,kind:"phys",mult:1.9,elem:"無"},
+             15:{name:"ぜんりょくぎり",mp:0,kind:"phys",mult:2.4,elem:"無"} },
+  priest:  { 5:{name:"いやしのひかり",mp:9,kind:"healAll",power:18},
+             10:{name:"スクルト",mp:5,kind:"buffDef"},
+             15:{name:"ベホイム",mp:8,kind:"heal",power:40},
+             20:{name:"せいなるひかり",mp:14,kind:"magAll",power:24,elem:"雷"} }
+};
 
 // 戦闘状態
 let battle=null;
@@ -340,6 +365,7 @@ let keys={};
 
 // ====== 初期化 ======
 function loadMap(name, sx, sy){
+  if(!MAPS[name]){ name="town"; sx=9; sy=11; }   // 無いマップ名(旧/壊れセーブ)なら町へ＝起動時クラッシュの保険
   currentMap=name;
   trail=[];                 // マップ移動時は足跡をリセット（仲間が勇者に寄る）
   const m=MAPS[name];
@@ -359,6 +385,7 @@ function loadMap(name, sx, sy){
       if(map[y][x]==="P"){ player.x=x*TILE+(TILE-player.size)/2; player.y=y*TILE+(TILE-player.size)/2; }
   }
   nudgeToFloor();   // 壁の中に置かれたら近くの床へ（壊れた復活地点の保険）
+  clearMoveInput(); // 遷移時に押下キー/タップ移動目標を解除（旧座標への自動歩行・出口バウンス防止）
   mode="field";
 }
 
@@ -446,6 +473,7 @@ function npcInFront(){
 }
 
 function talkTo(n){
+  if(n.event==="warrior" && !flags.warriorJoined){ eventRecruitWarrior(); return; }   // 旅の戦士＝加入イベント
   dialog.active=true; dialog.lines=n.lines; dialog.idx=0;
   dialog.name=n.name; dialog.shown=0; dialog.t=0; dialog.after=null;
   mode="talk";
@@ -461,7 +489,7 @@ function advanceDialog(){
   if(dialog.shown<full.length){ dialog.shown=full.length; return; } // 一気に表示
   dialog.idx++;
   if(dialog.idx>=dialog.lines.length){
-    dialog.active=false; mode="field";
+    dialog.active=false; mode="field"; clearMoveInput();   // 押下キー/タップ目標を解除（戻った瞬間の暴走防止）
     const cb=dialog.after; dialog.after=null; if(cb) cb();
   } else { dialog.shown=0; dialog.t=0; }
 }
@@ -479,7 +507,7 @@ function startIntro(){ intro.active=true; intro.page=0; intro.shown=0; intro.t=0
 function advanceIntro(){
   if(intro.shown < introLen()){ intro.shown = introLen(); return; }   // タイプ途中なら一気に全表示
   intro.page++;
-  if(intro.page >= INTRO_PAGES.length){ intro.active=false; mode="field"; }   // 冒険スタート
+  if(intro.page >= INTRO_PAGES.length){ intro.active=false; mode="field"; clearMoveInput(); }   // 冒険スタート
   else { intro.shown=0; intro.t=0; }
 }
 function drawIntro(){
@@ -515,10 +543,10 @@ function calcDmg(atk,def){ const base=atk-def/2; return Math.max(1, Math.floor(b
 function needExp(lv){ return lv*lv*4 + lv*6; }
 // マップ別エンカウント表（重み付き）。表が無いマップは序盤の弱敵にフォールバック。
 const ENCOUNTERS={
-  field:[[GAME_DATA.enemies[0],55],[GAME_DATA.enemies[1],32],[GAME_DATA.enemies[2],13]],
-  cave: [[GAME_DATA.enemies[1],40],[GAME_DATA.enemies[2],38],[E_AREA[0],22]],
-  area2:[[E_AREA[0],38],[E_AREA[1],34],[E_AREA[2],28]],
-  road: [[E_ROAD[0],40],[E_ROAD[1],34],[E_ROAD[2],26]]
+  field:[[GAME_DATA.enemies[0],55],[GAME_DATA.enemies[1],32],[GAME_DATA.enemies[2],13],[GOLD_SLIME,2]],
+  cave: [[GAME_DATA.enemies[1],40],[GAME_DATA.enemies[2],38],[E_AREA[0],22],[GOLD_SLIME,2]],
+  area2:[[E_AREA[0],38],[E_AREA[1],34],[E_AREA[2],28],[GOLD_SLIME,2]],
+  road: [[E_ROAD[0],40],[E_ROAD[1],34],[E_ROAD[2],26],[GOLD_SLIME,2]]
 };
 function pickEnemy(){
   const tbl=ENCOUNTERS[currentMap]||ENCOUNTERS.field;
@@ -528,13 +556,26 @@ function pickEnemy(){
   return tbl[0][0];
 }
 
+// ===== 複数敵の戦闘ヘルパー =====
+function foes(){ return battle.enemies.filter(e=>e.hp>0); }       // 生存中の敵
+function frontFoe(){ return foes()[0]; }                          // 単体対象は前列
+function randAlive(){ const a=aliveMembers(); return a.length?a[Math.floor(Math.random()*a.length)]:null; }
+function pickGroup(){                                              // 同種を grp 体まで（小さめに偏らせる）
+  const e=pickEnemy(); const maxg=e.grp||1;
+  let n=1; for(let i=1;i<maxg && i<3;i++){ if(Math.random()<0.55) n++; }
+  const arr=[]; for(let i=0;i<n;i++) arr.push(e); return arr;
+}
 function startBattle(forced, onWin){
-  const e=forced || pickEnemy();
-  battle={ enemy:{...e, hp:e.maxhp}, state:"msg", msg:[], msgIdx:0, shown:0,
-           after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null, onWin:onWin||null,
-           order:[], actorIdx:0, actor:null };
+  const list = forced ? [forced] : pickGroup();
+  const multi = list.length>1;
+  const enemies = list.map((e,i)=>({ ...e, hp:e.maxhp, _ph:i*1.3,
+                     name: multi ? e.name+" "+String.fromCharCode(65+i) : e.name }));   // 複数は A/B/C
+  battle={ enemies, state:"msg", msg:[], msgIdx:0, shown:0,
+           after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null, onWin:onWin||null, noFlee:!!onWin,
+           order:[], actorIdx:0, actor:null, _foeQ:[] };
   mode="battle"; fx("enc");
-  queueMsg([e.name+"が あらわれた！"], startRound);
+  const head = multi ? (list[0].name+" の むれ") : list[0].name;
+  queueMsg([head+"が あらわれた！"], startRound);
 }
 function queueMsg(lines, after){
   battle.msg=Array.isArray(lines)?lines:[lines];
@@ -553,7 +594,7 @@ function startRound(){
   battle.order=aliveMembers(); battle.actorIdx=0; nextActorCmd();
 }
 function nextActorCmd(){
-  if(battle.enemy.hp<=0){ winBattle(); return; }
+  if(foes().length===0){ winBattle(); return; }
   if(battle.actorIdx>=battle.order.length){ enemyTurn(); return; }
   battle.actor=battle.order[battle.actorIdx];
   if(battle.actor.down){ battle.actorIdx++; nextActorCmd(); return; }
@@ -561,7 +602,7 @@ function nextActorCmd(){
 }
 function enterCommand(){ battle.state="command"; battle.cmd=0; }
 function advanceActor(){ battle.actorIdx++; nextActorCmd(); }
-function afterActorAction(){ if(battle.enemy.hp<=0){ winBattle(); return; } advanceActor(); }
+function afterActorAction(){ if(foes().length===0){ winBattle(); return; } advanceActor(); }
 function confirmCommand(){
   const b=battle, m=b.actor;
   if(b.cmd===0) actorAttack();
@@ -577,31 +618,50 @@ function confirmCommand(){
   else tryFlee();
 }
 function actorAttack(){
-  const m=battle.actor, d=calcDmg(atkOf(m), battle.enemy.def);
-  battle.enemy.hp-=d; battle.shake=12; fx("hit");
-  queueMsg([m.name+"の こうげき！", battle.enemy.name+"に "+d+"の ダメージ！"], afterActorAction);
+  const m=battle.actor, e=frontFoe();
+  if(!e){ afterActorAction(); return; }
+  if(e.evasion && Math.random()<e.evasion){ queueMsg([m.name+"の こうげき！", e.name+"は ひらりと かわした！"], afterActorAction); return; }
+  const d=calcDmg(atkOf(m), e.def); e.hp-=d; battle.shake=12; fx("hit");
+  const fell=e.hp<=0?[e.name+"を たおした！"]:[];
+  queueMsg([m.name+"の こうげき！", e.name+"に "+d+"の ダメージ！", ...fell], afterActorAction);
 }
 // 呪文・特技の共通実行
 function castAction(m,a){
-  const b=battle, e=b.enemy;
+  const b=battle;
   if(a.mp>0) m.mp-=a.mp;
-  if(a.kind==="phys"){           // 物理特技：攻撃力ベース
-    const d=Math.max(1, Math.floor(calcDmg(Math.floor(atkOf(m)*a.mult), e.def)*elemMult(a.elem,e)));
-    e.hp-=d; b.shake=12; fx("hit");
-    queueMsg([m.name+"の "+a.name+"！", e.name+"に "+d+"の ダメージ！"], afterActorAction);
-  }else if(a.kind==="mag"){      // 攻撃魔法：威力＋レベル、属性倍率
+  if(a.kind==="phys" || a.kind==="mag"){          // 単体（物理特技 / 攻撃魔法）→ 前列の敵
+    const e=frontFoe(); if(!e){ afterActorAction(); return; }
+    const verb = a.kind==="phys" ? "の "+a.name+"！" : "は "+a.name+"を となえた！";
+    if(a.kind==="phys" && e.evasion && Math.random()<e.evasion){ queueMsg([m.name+verb, e.name+"は かわした！"], afterActorAction); return; }
     const wk=elemMult(a.elem,e);
-    const d=Math.max(1, Math.floor((a.power+m.lv*2)*wk*(0.85+Math.random()*0.3)));
-    e.hp-=d; b.flash=10; fx("hit");
+    const d = a.kind==="phys"
+      ? Math.max(1, Math.floor(calcDmg(Math.floor(atkOf(m)*a.mult), e.def)*wk))
+      : Math.max(1, Math.floor((a.power+m.lv*2)*wk*(0.85+Math.random()*0.3)));
+    e.hp-=d; if(a.kind==="mag")b.flash=10; b.shake=12; fx("hit");
     const tag = wk>1?" じゃくてん！" : (wk<1?" きいていない…":"");
-    queueMsg([m.name+"は "+a.name+"を となえた！", e.name+"に "+d+"の ダメージ！"+tag], afterActorAction);
-  }else if(a.kind==="heal"){     // 回復（自分）
-    const h=a.power+Math.floor(Math.random()*8); m.hp=Math.min(m.maxhp,m.hp+h); fx("heal");
-    queueMsg([m.name+"は "+a.name+"を となえた！", m.name+"の HPが "+h+" かいふく！"], afterActorAction);
-  }else if(a.kind==="buffAtk"){  // 味方全体の攻撃力アップ
+    const fell = e.hp<=0?[e.name+"を たおした！"]:[];
+    queueMsg([m.name+verb, e.name+"に "+d+"の ダメージ！"+tag, ...fell], afterActorAction);
+  }else if(a.kind==="magAll"){                    // 全体攻撃魔法
+    b.flash=10; b.shake=8; fx("hit");
+    const lines=[m.name+"は "+a.name+"を となえた！"], dead=[];
+    for(const e of foes()){ const wk=elemMult(a.elem,e);
+      const d=Math.max(1, Math.floor((a.power+m.lv*2)*wk*(0.85+Math.random()*0.3))); e.hp-=d;
+      lines.push(e.name+"に "+d+"！"); if(e.hp<=0) dead.push(e.name+"を たおした！"); }
+    queueMsg([...lines, ...dead], afterActorAction);
+  }else if(a.kind==="heal"){                       // 単体回復（最も傷ついた味方）
+    const h=a.power+Math.floor(Math.random()*8);
+    const tgt=aliveMembers().slice().sort((x,y)=>(x.hp/x.maxhp)-(y.hp/y.maxhp))[0]||m;
+    tgt.hp=Math.min(tgt.maxhp,tgt.hp+h); fx("heal");
+    queueMsg([m.name+"は "+a.name+"を となえた！", tgt.name+"の HPが "+h+" かいふく！"], afterActorAction);
+  }else if(a.kind==="healAll"){                    // 全体回復
+    fx("heal"); const lines=[m.name+"は "+a.name+"を となえた！"];
+    for(const t of aliveMembers()){ const h=a.power+Math.floor(Math.random()*6); t.hp=Math.min(t.maxhp,t.hp+h); }
+    lines.push("みかた ぜんいんの HPが かいふくした！");
+    queueMsg(lines, afterActorAction);
+  }else if(a.kind==="buffAtk"){
     for(const mm of aliveMembers()) mm.buffAtkT=3; fx("heal");
     queueMsg([m.name+"は "+a.name+"を となえた！","みかた ぜんいんの こうげきりょくが あがった！"], afterActorAction);
-  }else if(a.kind==="buffDef"){  // 味方全体の守備力アップ
+  }else if(a.kind==="buffDef"){
     for(const mm of aliveMembers()) mm.buffDefT=3; fx("heal");
     queueMsg([m.name+"は "+a.name+"を となえた！","みかた ぜんいんの しゅびりょくが あがった！"], afterActorAction);
   }
@@ -623,21 +683,61 @@ function confirmSkill(){
 function actorItem(){
   if(stats.herb<=0){ queueMsg(["やくそうが ない！"], enterCommand); return; }
   const m=battle.actor;
-  stats.herb--; const h=20+Math.floor(Math.random()*8); m.hp=Math.min(m.maxhp, m.hp+h); fx("heal");
-  queueMsg([m.name+"は やくそうを つかった！", m.name+"の HPが "+h+" かいふく！"], afterActorAction);
+  stats.herb--; const h=20+Math.floor(Math.random()*8);
+  const tgt=aliveMembers().slice().sort((x,y)=>(x.hp/x.maxhp)-(y.hp/y.maxhp))[0]||m;
+  tgt.hp=Math.min(tgt.maxhp, tgt.hp+h); fx("heal");
+  queueMsg([m.name+"は やくそうを つかった！", tgt.name+"の HPが "+h+" かいふく！"], afterActorAction);
 }
 function tryFlee(){
+  if(battle.noFlee){ queueMsg(["にげられない！"], enterCommand); return; }   // ボス/強制戦闘は逃走不可
   if(Math.random()<0.6) queueMsg(["パーティは にげだした！"], endBattle);
   else queueMsg(["まわりこまれて しまった！"], enemyTurn);
 }
-function enemyTurn(){
-  const e=battle.enemy, alive=aliveMembers();
-  if(alive.length===0){ loseBattle(); return; }
-  const t=alive[Math.floor(Math.random()*alive.length)];
+function enemyTurn(){ battle._foeQ = foes().slice(); doNextFoe(); }
+function doNextFoe(){
+  if(aliveMembers().length===0){ loseBattle(); return; }
+  const e = battle._foeQ.shift();
+  if(!e){ startRound(); return; }            // 全敵が行動済み → 味方ターンへ
+  if(e.hp<=0){ doNextFoe(); return; }
+  if(e.fleeChance && Math.random()<e.fleeChance){   // レアモンスターの逃走
+    e.hp=0; e.fled=true;
+    if(foes().length===0) queueMsg([e.name+"は にげさった…"], endBattle);   // 単体で逃走→終了(報酬なし)
+    else queueMsg([e.name+"は にげさった！"], doNextFoe);
+    return;
+  }
+  const mv = (e.moves && e.moves.length && Math.random()<(e.moveChance||0.4)) ? e.moves[Math.floor(Math.random()*e.moves.length)] : null;
+  if(mv) enemyMove(e, mv); else enemyBasic(e);
+}
+function enemyBasic(e){
+  const t=randAlive(); if(!t){ doNextFoe(); return; }
   const d=calcDmg(e.atk, defOf(t)); t.hp-=d; battle.shakeP=12; fx("hit");
   const lines=[e.name+"の こうげき！", t.name+"は "+d+"の ダメージ！"];
   if(t.hp<=0){ t.hp=0; t.down=true; lines.push(t.name+"は たおれた！"); }
-  queueMsg(lines, ()=>{ if(aliveMembers().length===0) loseBattle(); else startRound(); });
+  queueMsg(lines, doNextFoe);
+}
+function enemyMove(e, mv){
+  if(mv.kind==="all"){                       // 全体攻撃
+    battle.shakeP=12; fx("hit"); const lines=[e.name+"の "+mv.name+"！"];
+    for(const t of aliveMembers()){ const d=Math.max(1, Math.floor(calcDmg(e.atk, defOf(t))*(mv.mult||0.7))); t.hp-=d;
+      let s=t.name+"は "+d+"！"; if(t.hp<=0){ t.hp=0; t.down=true; s+=" たおれた！"; } lines.push(s); }
+    queueMsg(lines, doNextFoe);
+  }else if(mv.kind==="healSelf"){            // 自己回復
+    e.hp=Math.min(e.maxhp, e.hp+(mv.power||20)); fx("heal");
+    queueMsg([e.name+"の "+mv.name+"！", e.name+"は きずを いやした！"], doNextFoe);
+  }else{                                     // heavy（強単体）
+    const t=randAlive(); if(!t){ doNextFoe(); return; }
+    const d=Math.floor(calcDmg(Math.floor(e.atk*(mv.mult||1.6)), defOf(t))); t.hp-=d; battle.shakeP=14; fx("hit");
+    const lines=[e.name+"の "+mv.name+"！", t.name+"に "+d+"の だいダメージ！"];
+    if(t.hp<=0){ t.hp=0; t.down=true; lines.push(t.name+"は たおれた！"); }
+    queueMsg(lines, doNextFoe);
+  }
+}
+function learnAt(m){      // この lv で覚える特技/呪文があれば習得して名前を返す
+  const tbl=LEARN[m.role]; if(!tbl) return null;
+  const a=tbl[m.lv]; if(!a) return null;
+  const into = a.kind==="phys" ? (m.skills||(m.skills=[])) : (m.spells||(m.spells=[]));
+  if(into.some(x=>x.name===a.name)) return null;
+  into.push({...a}); return a.name;
 }
 function gainExp(ex){
   const msgs=[];
@@ -647,18 +747,23 @@ function gainExp(ex){
       m.exp-=needExp(m.lv); m.lv++;
       m.maxhp+=6; m.maxmp+=3; m.atk+=2; m.def+=1; m.hp=m.maxhp; m.mp=m.maxmp;
       msgs.push(m.name+"は レベル"+m.lv+"に あがった！");
+      const learned=learnAt(m);
+      if(learned) msgs.push(m.name+"は "+learned+"を おぼえた！");
     }
   }
   if(msgs.length) fx("level");
   return msgs;
 }
 function winBattle(){
-  const e=battle.enemy; fx("win");
-  stats.gold+=e.gold;
-  const lines=[e.name+"を たおした！","けいけんち "+e.exp+"　"+e.gold+"ゴールド！"];
-  lines.push(...gainExp(e.exp));
+  fx("win");
+  const killed=battle.enemies.filter(e=>!e.fled);
+  const totExp=killed.reduce((s,e)=>s+e.exp,0), totGold=killed.reduce((s,e)=>s+e.gold,0);
+  stats.gold+=totGold;
+  const head = killed.length>1 ? "まものを ぜんめつ させた！" : (killed[0]?killed[0].name+"を たおした！":"しょうり！");
+  const lines=[head, "けいけんち "+totExp+"　"+totGold+"ゴールド！"];
+  lines.push(...gainExp(totExp));
   const cb=battle.onWin;
-  queueMsg(lines, ()=>{ endBattle(); if(cb) cb(); });   // 強制戦闘なら勝利後イベントへ
+  queueMsg(lines, ()=>{ endBattle(); saveGame(); if(cb) cb(); });   // 勝利を保存（強制戦闘なら勝利後イベントへ）
 }
 function loseBattle(){
   queueMsg(["パーティは ぜんめつした…","きょうかいで めをさました…"], ()=>{
@@ -697,6 +802,21 @@ function eventRecruitSera(){
   ], ()=>{
     flags.seraJoined=true;
     if(!party.some(m=>m.role==="priest")) recruit(makePriest());   // 二重加入ガード
+    saveGame();
+  });
+}
+// 旅の戦士ガルドが仲間に（town2のNPC「旅の戦士」に話しかけると発火）
+function eventRecruitWarrior(){
+  if(flags.warriorJoined) return;
+  mode="field";
+  showScene([
+    "旅の戦士「おれは ガルド。うでには じしんが ある。",
+    "　魔王を たおす たびと きいた。",
+    "　ぜひ おれも くわえてくれ！」",
+    "ガルドが なかまに くわわった！"
+  ], ()=>{
+    flags.warriorJoined=true;
+    if(!party.some(m=>m.role==="warrior")) recruit(makeWarrior());   // 二重加入ガード
     saveGame();
   });
 }
@@ -845,10 +965,11 @@ function loadGame(){
                              m.skills=kit.skills; m.spells=kit.spells;
                              if(!m.img)m.img=({hero:"hero",mage:"mage",warrior:"warrior",priest:"sister"})[m.role]||"hero"; }  // 画像キー補完(img導入前のセーブ対策)
       if(stats.gold===undefined)stats.gold=0; if(stats.herb===undefined)stats.herb=0; if(stats.elixir===undefined)stats.elixir=0;
-      if(s.respawn) respawn=s.respawn; if(s.flags) Object.assign(flags, s.flags);
+      if(s.respawn) respawn=(MAPS[s.respawn.map]?s.respawn:{map:"town",tx:9,ty:11});  if(s.flags) Object.assign(flags, s.flags);
       // 不整合セーブの自己修復：加入フラグが立っているのに仲間が居なければ入れ直す（過去版の名残対策）
-      if(flags.mageRescued && !party.some(m=>m.role==="mage"))   recruit(makeMage());
-      if(flags.seraJoined  && !party.some(m=>m.role==="priest")) recruit(makePriest());
+      if(flags.mageRescued && !party.some(m=>m.role==="mage"))      recruit(makeMage());
+      if(flags.seraJoined  && !party.some(m=>m.role==="priest"))    recruit(makePriest());
+      if(flags.warriorJoined && !party.some(m=>m.role==="warrior")) recruit(makeWarrior());
       return true; }
   }catch(e){} return false;
 }
@@ -869,7 +990,8 @@ document.addEventListener("keydown",(e)=>{
   if(e.key==="ArrowUp")keys["w"]=true; if(e.key==="ArrowDown")keys["s"]=true;
   if(e.key==="ArrowLeft")keys["a"]=true; if(e.key==="ArrowRight")keys["d"]=true;
   if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k)) e.preventDefault();
-  if(mode==="intro"){ if(!e.repeat) advanceIntro(); return; }
+  if(e.repeat) return;   // キーリピートでのメニュー暴走・会話無限ループ防止（移動は上のkeys[]で継続）
+  if(mode==="intro"){ advanceIntro(); return; }
   if(mode==="battle"){
     const b=battle; if(!b) return;
     if(b.state==="msg"){ if(k===" "||e.key==="Enter") advanceBattleMsg(); }
@@ -889,6 +1011,7 @@ document.addEventListener("keydown",(e)=>{
   }
   if(mode==="service"){
     const s=service; if(!s) return;
+    if(k==="escape"){ s.phase==="menu"?closeService():advanceSvc(); return; }   // Escでも離脱/送り
     if(s.phase==="menu"){
       const n=s.labels.length;
       if(k==="w"||e.key==="ArrowUp")    s.cursor=Math.max(0, s.cursor-1);
@@ -900,7 +1023,7 @@ document.addEventListener("keydown",(e)=>{
     return;
   }
   if(mode==="status"){
-    if(k==="m"||k==="escape"||k==="i"||k===" "||e.key==="Enter") mode="field";
+    if(k==="m"||k==="escape"||k==="i"||k===" "||e.key==="Enter"){ mode="field"; clearMoveInput(); }
     return;
   }
   if(mode==="field" && (k==="m"||k==="i")){ mode="status"; return; }
@@ -965,10 +1088,12 @@ canvas.addEventListener("pointerdown",(e)=>{
   if(mode==="service"){
     const s=service; if(!s) return; const p=canvasPos(e);
     if(s.phase==="msg"){ advanceSvc(); return; }
+    if(s.navRects){ for(const r of s.navRects){ if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h){   // ページ送り(タップ)
+      s.cursor=Math.max(0,Math.min(s.labels.length-1, s.cursor+r.dir*7)); return; } } }
     if(s.rects){ for(const r of s.rects){ if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h){ s.cursor=r.i; confirmSvc(); return; } } }
     return;
   }
-  if(mode==="status"){ mode="field"; return; }
+  if(mode==="status"){ mode="field"; clearMoveInput(); return; }
   const p=canvasPos(e);
   if(p.x>VIEW-72 && p.y<72){ mode="status"; return; }   // 右上メニューボタン
   // タップした地点へ歩いて行く（ポイント移動）。ワールド座標 = 画面座標 + カメラ
@@ -1479,10 +1604,12 @@ function drawDialog(){
   g.addColorStop(0,"#d9b24a"); g.addColorStop(1,"#9c7a28");
   ctx.fillStyle=g; roundRect(m,y,w,h,14); ctx.fill();
   ctx.fillStyle="#101830"; roundRect(m+6,y+6,w-12,h-12,10); ctx.fill();
-  // 名前タグ
-  ctx.fillStyle="#d9b24a"; roundRect(m+18,y-2,140,34,8); ctx.fill();
-  ctx.fillStyle="#101830"; ctx.font="bold 18px sans-serif"; ctx.textAlign="center";
-  ctx.fillText(dialog.name, m+18+70, y+21); ctx.textAlign="left";
+  // 名前タグ（名前がある時だけ。地の文シーンでは空タグを出さない）
+  if(dialog.name){
+    ctx.fillStyle="#d9b24a"; roundRect(m+18,y-2,140,34,8); ctx.fill();
+    ctx.fillStyle="#101830"; ctx.font="bold 18px sans-serif"; ctx.textAlign="center";
+    ctx.fillText(dialog.name, m+18+70, y+21); ctx.textAlign="left";
+  }
   // 本文（1文字ずつ）
   ctx.fillStyle="#fff"; ctx.font="24px 'Hiragino Kaku Gothic ProN',sans-serif";
   const text=dialog.lines[dialog.idx].slice(0,dialog.shown);
@@ -1533,18 +1660,35 @@ function drawBattle(){
     ctx.fillStyle=m.down?"#777":(m.hp<=m.maxhp*0.25?"#ff6a6a":"#cfe0ff"); ctx.fillText("HP "+m.hp+"/"+m.maxhp, cx, 76);
     ctx.fillStyle=m.down?"#777":"#9fd0ff"; ctx.fillText("MP "+m.mp+"/"+m.maxmp, cx, 98);
   }
-  // 敵（バナーの下〜下部ウィンドウの間の中央。枠と重ならない）
-  const eimg=SPR[b.enemy.spr], float=Math.sin(Date.now()*0.003)*7;
-  const shakeX=b.shake>0?(Math.random()-0.5)*b.shake:0;
-  const iw=eimg.width||80, ih=eimg.height||80;
-  const eh=b.enemy.big?260:200;                 // 表示高さ（中ボス/魔王は大きめ）
-  const ew=Math.round(eh*iw/ih);                // アスペクト比を保つ（画像は非正方）
+  // 敵（複数体を横に並べる。前列＝プレイヤーの攻撃対象）
+  const list=foes();
   const _top=20+_bh, _bot=VIEW-240;
-  const ex=VIEW/2-ew/2+shakeX, ey=_top+((_bot-_top)-eh)/2+float;
-  ctx.fillStyle="#1c1838"; ctx.fillRect(0, Math.round(ey+eh+6), VIEW, 3);   // 敵の足元の地面ライン
-  if(eimg.width && !(b.flash>0 && Math.floor(Date.now()/60)%2)) ctx.drawImage(eimg, ex, ey, ew, eh);
+  const big=list.some(e=>e.big);
+  const eh = big?260 : (list.length>=3?160 : (list.length===2?190:210));   // 多いほど小さく
+  let total=0; const dims=list.map(e=>{ const im=SPR[e.spr]; const iw=(im&&im.width)||80, ih=(im&&im.height)||80; const w=Math.round(eh*iw/ih); total+=w; return {im,w}; });
+  total += Math.max(0,list.length-1)*28;
+  let cx0 = VIEW/2 - total/2;
+  const front=frontFoe();
+  for(let i=0;i<list.length;i++){
+    const e=list[i], im=dims[i].im, ew=dims[i].w;
+    const float=Math.sin(Date.now()*0.003 + (e._ph||0))*7;
+    const sx = (b.shake>0 && e===front) ? (Math.random()-0.5)*b.shake : 0;
+    const ex=cx0+sx, ey=_top+((_bot-_top)-eh)/2+float;
+    ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.fillRect(Math.round(ex+ew*0.12), Math.round(ey+eh+4), Math.round(ew*0.76), 3);  // 足元の影
+    if(im && im.width && !(b.flash>0 && Math.floor(Date.now()/60)%2)){
+      if(e.tint){   // 色相を金色などに置き換え（陰影・透明は保持＝color合成→alpha再適用）
+        const oc=document.createElement('canvas'); oc.width=im.width; oc.height=im.height;
+        const o=oc.getContext('2d'); o.drawImage(im,0,0);
+        o.globalCompositeOperation="color"; o.fillStyle=e.tint; o.fillRect(0,0,oc.width,oc.height);
+        o.globalCompositeOperation="destination-in"; o.drawImage(im,0,0);
+        ctx.drawImage(oc, ex, ey, ew, eh);
+      } else ctx.drawImage(im, ex, ey, ew, eh);
+    }
+    cx0 += ew + 28;
+  }
   ctx.fillStyle="#fff"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="center";
-  ctx.fillText(b.enemy.name, VIEW/2, ey+eh+34); ctx.textAlign="left";
+  const label = list.length<=1 ? (list[0]?list[0].name:"") : (list[0].name.replace(/ [A-Z]$/,"")+" ×"+list.length);
+  ctx.fillText(label, VIEW/2, _bot-10); ctx.textAlign="left";
   // プレイヤー被弾フラッシュ
   if(b.shakeP>0 && Math.floor(Date.now()/50)%2){ ctx.fillStyle="rgba(200,30,30,0.18)"; ctx.fillRect(0,0,VIEW,VIEW); }
   // 下部ウィンドウ
@@ -1689,9 +1833,12 @@ function drawService(){
       s.rects.push({x:wx+18,y:by-38,w:ww-36,h:50,i});            // 行全体をタップ対象に
     }
     const pages=Math.ceil(s.labels.length/PER);
+    s.navRects=[];
     if(pages>1){
       ctx.fillStyle="#9aa0b0"; ctx.font="20px sans-serif"; ctx.textAlign="center";
       ctx.fillText("◀  "+(page+1)+" / "+pages+"  ▶", VIEW/2, wy+wh-22); ctx.textAlign="left";
+      s.navRects.push({dir:-1, x:wx, y:wy+wh-46, w:VIEW/2-wx, h:44});        // ◀ タップ＝前ページ
+      s.navRects.push({dir:+1, x:VIEW/2, y:wy+wh-46, w:wx+ww-VIEW/2, h:44}); // ▶ タップ＝次ページ
     }
   }else{
     ctx.fillStyle="#fff"; ctx.font="28px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";

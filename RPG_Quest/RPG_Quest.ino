@@ -208,6 +208,7 @@ void loop(){
     client.setTimeout(40);              // 読み取り待ちを短く（既定1秒だと詰まる）
     // リクエスト1行目だけ読んでパスを取得
     String reqLine = client.readStringUntil('\n');
+    if(reqLine.length()==0){ client.stop(); return; }   // 空接続(プローブ等)は重いページを返さず即切断
     // 残りのヘッダを読み飛ばす（最大20行・空行で終了）
     for(int i=0;i<20;i++){
       String h=client.readStringUntil('\n');
@@ -265,9 +266,16 @@ void loop(){
       client.flush();
       client.stop();
     }
-    else{
+    else if(path=="/" || path=="/index.html" || path.startsWith("/?")){
       // ゲームHTML（RPG）を gzip圧縮のまま配信（ブラウザが自動展開＝SRAM消費は最小）
       sendGzipPage(client, PAGE_GZ, PAGE_GZ_LEN);
+    }
+    else{
+      // 未知URL(OSのネット接続確認など)には重いページを返さず404で即切る＝サーバ占有を防ぐ
+      client.println("HTTP/1.1 404 Not Found");
+      client.println("Connection: close");
+      client.println();
+      client.stop();
     }
   }
 }

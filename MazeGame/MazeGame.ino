@@ -16,7 +16,13 @@
 */
 
 #include <WiFiS3.h>
-#include "arduino_secrets.h"
+// arduino_secrets.h があれば自分のWiFi情報を使う。無ければダミーで通す＝DLしてすぐ書き込める
+#if __has_include("arduino_secrets.h")
+  #include "arduino_secrets.h"
+#else
+  #define SECRET_SSID "your-2.4GHz-wifi"
+  #define SECRET_PASS "your-wifi-password"
+#endif
 #include "maze_gz.h"   // 迷路ページをgzip圧縮したバイト列（MAZE_GZ / MAZE_GZ_LEN）。_gzip_maze.py が maze.html から生成
 #include <Wire.h>                 // I2C（OLED用）
 #include <Adafruit_SSD1306.h>     // OLED SSD1306 128x64（接続用QR表示）

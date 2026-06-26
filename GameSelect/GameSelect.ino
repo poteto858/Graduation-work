@@ -22,7 +22,14 @@
 #include <Wire.h>                 // I2C（OLED用）
 #include <Adafruit_SSD1306.h>     // OLED SSD1306 128x64（QR表示）
 #include <qrcode.h>               // QRコード生成（ricmoo QRCode）
-#include "arduino_secrets.h"
+// arduino_secrets.h があれば自分のWiFi情報を使う。無ければダミーで通す＝DLしてすぐ書き込める
+// （デモはAP「GameSelect」で動くのでダミーは未使用。家WiFiに繋ぐ時だけ .example をコピーして記入）
+#if __has_include("arduino_secrets.h")
+  #include "arduino_secrets.h"
+#else
+  #define SECRET_SSID "your-2.4GHz-wifi"
+  #define SECRET_PASS "your-wifi-password"
+#endif
 
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;

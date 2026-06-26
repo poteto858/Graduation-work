@@ -17,6 +17,40 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 
 ---
 
+## ▶ すぐ遊ぶ（ダウンロード → 書き込むだけ）
+
+`GameSelect/` を書き込めば、**迷路もRPGも1台で**遊べます。
+**WiFi設定すら不要**です（初期状態でArduino自身がWiFi「GameSelect」を立てる *デモモード* で起動します）。
+
+### 用意するもの
+- **Arduino UNO R4 WiFi** 本体 ＋ **USB-Cケーブル**
+- スマホ または PC（ブラウザがあればOK）
+- （任意）OLED SSD1306 … 接続用のQRコードを表示するだけ。無くても遊べます
+
+### 1. Arduino IDE の準備（初回だけ）
+1. [Arduino IDE](https://www.arduino.cc/en/software) をインストール
+2. **ボード**：ボードマネージャで「**Arduino UNO R4 Boards**」を入れる
+3. **ライブラリ**：ライブラリマネージャで次の3つを入れる（名前で検索して Install）
+   - `Adafruit SSD1306`（依存の `Adafruit GFX Library` も一緒に入ります）
+   - `Adafruit NeoPixel`
+   - `QRCode`（作者 **Richard Moore** のもの）
+
+### 2. 書き込む
+1. このページ右上の緑「**Code ▾ → Download ZIP**」で落として解凍（または `git clone`）
+2. `GameSelect/GameSelect.ino` を Arduino IDE で開く
+3. **ツール → ボード**＝「Arduino UNO R4 WiFi」、**ポート**を選ぶ
+4. **→（書き込み）** ボタンを押す … *WiFi情報の入力は不要です*
+
+### 3. 遊ぶ
+1. スマホの**WiFi設定で「GameSelect」**（パスワード無し）に接続
+2. 画面が自動で開かないときは、ブラウザで **`http://192.168.4.1`** を開く
+3. **ゲーム選択画面**が出る → 迷路 / RPG を選んでプレイ
+   - 操作：PCは **WASD / 矢印キー**、スマホは**画面タップ**（RPGは画面下の仮想ボタンも使えます）
+
+> **家のWiFiに繋いで遊ぶ場合**：`arduino_secrets.h.example` を同じフォルダに `arduino_secrets.h` という名前でコピーして自分の **2.4GHz** WiFi情報を記入し、`GameSelect.ino` の `#define PORTABLE_DEMO 1` を **`0`** に変えてから書き込みます。起動後、OLEDかシリアルモニタ(9600bps)に出る `192.168.x.x` をブラウザで開きます。
+
+---
+
 ## 共通の仕組み（このプロジェクトの肝）
 
 ```mermaid

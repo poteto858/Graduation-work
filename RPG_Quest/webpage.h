@@ -299,7 +299,7 @@ let party=[{ name:"勇者", role:"hero", job:"勇者", img:"hero", color:"#2e57c
              spells:[{name:"かえん",mp:3,kind:"mag",power:12,elem:"火"},{name:"いやし",mp:4,kind:"heal",power:20}],
              gold:0, herb:3, elixir:0, buffAtkT:0, buffDefT:0 }];
 let stats=party[0];
-const HERO_KIT={ skills: party[0].skills, spells: party[0].spells };   // 勇者の固定の特技/呪文（セーブ復元用）
+const HERO_KIT={ skills: party[0].skills.slice(), spells: party[0].spells.slice() };   // 勇者の初期の特技/呪文スナップショット（セーブ復元の土台）
 function atkOf(m){ let a=m.atk+(m.weapon?m.weapon.atk:0); if(m.buffAtkT>0)a=Math.floor(a*1.4); return a; }
 function defOf(m){ let d=m.def+(m.armor?m.armor.def:0); if(m.buffDefT>0)d=Math.floor(d*1.5); return d; }
 function aliveMembers(){ return party.filter(m=>!m.down); }
@@ -351,6 +351,17 @@ const LEARN = {
              15:{name:"ベホイム",mp:8,kind:"heal",power:40},
              20:{name:"せいなるひかり",mp:14,kind:"magAll",power:24,elem:"雷"} }
 };
+function baseKit(role){   // 役割ごとの初期キット（固定分）
+  return role==="mage"?makeMage() : role==="warrior"?makeWarrior() : role==="priest"?makePriest()
+       : { skills: HERO_KIT.skills, spells: HERO_KIT.spells };
+}
+function rebuildKit(m){    // 特技/呪文を「役割の初期キット＋現Lv以下のLEARN習得」で決定的に再構成（セーブ依存をやめ習得消失を防ぐ／旧セーブも自己修復）
+  const base=baseKit(m.role);
+  m.skills=base.skills.slice(); m.spells=base.spells.slice();
+  const tbl=LEARN[m.role]||{};
+  for(const L in tbl){ if(Number(L)<=m.lv){ const a=tbl[L]; const into=a.kind==="phys"?m.skills:m.spells;
+    if(!into.some(x=>x.name===a.name)) into.push({...a}); } }
+}
 
 // 戦闘状態
 let battle=null;
@@ -361,7 +372,7 @@ const BATTLE_CMDS=["たたかう","とくぎ","じゅもん","どうぐ","にげ
 let service=null;
 
 // ストーリーフラグ（イベント1回判定など）
-let flags={ mageRescued:false, seraJoined:false, maohDefeated:false, gehenaDefeated:false };
+let flags={ mageRescued:false, seraJoined:false, warriorJoined:false, maohDefeated:false, gehenaDefeated:false };
 
 let keys={};
 
@@ -694,7 +705,7 @@ function actorItem(){
 function tryFlee(){
   if(battle.noFlee){ queueMsg(["にげられない！"], enterCommand); return; }   // ボス/強制戦闘は逃走不可
   if(Math.random()<0.6) queueMsg(["パーティは にげだした！"], endBattle);
-  else queueMsg(["まわりこまれて しまった！"], enemyTurn);
+  else queueMsg([battle.actor.name+"は にげられなかった！"], afterActorAction);   // 失敗はそのメンバーのターン消費のみ（他は行動できる）
 }
 function enemyTurn(){ battle._foeQ = foes().slice(); doNextFoe(); }
 function doNextFoe(){
@@ -927,11 +938,11 @@ function closeService(){
 }
 function innStay(){
   if(stats.gold<INN_COST){ svcMsg(["おかねが たりないようだ。"], ()=>openService(service.b)); return; }
-  stats.gold-=INN_COST; stats.hp=stats.maxhp; stats.mp=stats.maxmp; saveGame();
+  stats.gold-=INN_COST; for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; } saveGame();   // 全員を全回復＆蘇生
   svcMsg(["ゆっくり おやすみなさい…","HPとMPが かいふくし、","ぼうけんを セーブした！"], closeService);
 }
 function churchPray(){
-  stats.hp=stats.maxhp; stats.mp=stats.maxmp;
+  for(const m of party){ if(!m.down){ m.hp=m.maxhp; m.mp=m.maxmp; } }   // 生存メンバー全員のHP/MP回復（蘇生は「そせい」担当）
   const _d=buildingDoor(service.b);
   respawn={ map:currentMap, tx:(_d?_d.dx:service.b.x+1), ty:(_d?_d.dy+1:service.b.y+2) };   // ドアの真下（大聖堂対応）
   saveGame();
@@ -997,9 +1008,7 @@ function loadGame(){
     if(s&&s.party&&s.party.length){ party=s.party; stats=party[0];
       // 旧セーブ互換：欠落フィールドを補完
       for(const m of party){ if(m.buffAtkT===undefined)m.buffAtkT=0; if(m.buffDefT===undefined)m.buffDefT=0;
-                             // 特技/呪文は役割ごとに固定 → セーブの値に頼らず最新テンプレから常に復元（古いセーブで空でも直る）
-                             const kit = m.role==="mage"?makeMage() : m.role==="warrior"?makeWarrior() : m.role==="priest"?makePriest() : HERO_KIT;
-                             m.skills=kit.skills; m.spells=kit.spells;
+                             rebuildKit(m);   // 特技/呪文は役割＋現Lvから再構成（習得分を保持・旧セーブも自己修復）
                              if(!m.img)m.img=({hero:"hero",mage:"mage",warrior:"warrior",priest:"sister"})[m.role]||"hero"; }  // 画像キー補完(img導入前のセーブ対策)
       if(stats.gold===undefined)stats.gold=0; if(stats.herb===undefined)stats.herb=0; if(stats.elixir===undefined)stats.elixir=0;
       if(s.respawn) respawn=(MAPS[s.respawn.map]?s.respawn:{map:"town",tx:9,ty:11});  if(s.flags) Object.assign(flags, s.flags);

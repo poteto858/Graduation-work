@@ -34,6 +34,12 @@ WiFiUDP    dnsUdp;                          // キャプティブポータル用
 bool       apMode = false;                  // AP(外でプレイ)モードか
 Adafruit_SSD1306 oled(128, 64, &Wire, -1);  // QR表示用OLED（I2C SDA/SCL, アドレス0x3C）
 
+// ★デモモード（1=ON / 0=普段）：周辺機器（ジョイ等）を外し、OLEDとArduinoだけで動かす設定。
+//   ・起動と同時にAP(GameSelect)を立てる（家Wi-Fiを待たない＝電源を入れたらすぐ使える）
+//   ・ジョイ未接続でも端子フローティングで誤入力しないよう /state は中立(512,512,0)を返す
+//   ※ブザー/NeoPixelは未接続でも無害、ミニマップは本体内蔵LEDで表示される。普段に戻すなら 0。
+#define PORTABLE_DEMO 1
+
 // ===== ハードウェア =====
 // ジョイスティック: VRx->A0  VRy->A1  SW->D2(INPUT_PULLUP)  VCC->5V  GND->GND
 const int PIN_VRX = A0;
@@ -167,7 +173,11 @@ void setup(){
 
   // --- Wi-Fi: 家ではルーターに接続(STA)、外ではArduino自身がアクセスポイント(AP)になる ---
   // ボタン(ジョイスティックSW)を押しながらリセットすると、待たずに即AP（外での持ち出し用）。
+#if PORTABLE_DEMO
+  bool forceAP = true;                          // デモモード：常にAP（家Wi-Fiを待たない）
+#else
   bool forceAP = (digitalRead(PIN_SW) == LOW);
+#endif
   if(!forceAP){
     Serial.println("Connecting to home Wi-Fi...");
     unsigned long t0 = millis();
@@ -271,8 +281,12 @@ void loop(){
     String path = (sp1>=0&&sp2>sp1) ? reqLine.substring(sp1+1, sp2) : "/";
 
     if(path.startsWith("/state")){
+#if PORTABLE_DEMO
+      int vx=512, vy=512, b=0;                  // デモ:ジョイ未接続→中立を返し端子フローティングの誤入力を防ぐ
+#else
       int vx=analogRead(PIN_VRX), vy=analogRead(PIN_VRY);
       int b=(digitalRead(PIN_SW)==LOW)?1:0;
+#endif
       String json="{\"x\":"+String(vx)+",\"y\":"+String(vy)+",\"b\":"+String(b)+"}";
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: application/json");

@@ -7,7 +7,7 @@ const char page[] = R"rawliteral(
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Quest</title>
 <style>
 body{margin:0;padding:14px 0;background:radial-gradient(circle at 50% 0%,#243a5e,#0c1424 70%);
@@ -26,13 +26,49 @@ canvas{display:block;border-radius:4px;background:#2a3a2a;touch-action:none;max-
 #loading .bar>i{display:block;height:100%;width:40%;border-radius:4px;background:#ffd23f;animation:slide 1.1s infinite;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes slide{0%{margin-left:-40%}100%{margin-left:100%}}
+/* スマホ用 仮想ゲームパッド（十字キー＋A/B） */
+#pad{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;
+     width:min(800px,94vw);margin:14px auto 0;padding:0 4px;touch-action:none;
+     -webkit-user-select:none;user-select:none;}
+.dpad{position:relative;width:162px;height:162px;flex:0 0 auto;}
+.db{position:absolute;width:54px;height:54px;border:none;border-radius:12px;padding:0;
+    background:rgba(26,34,64,.9);color:#cfe0ff;font-size:20px;line-height:54px;
+    box-shadow:0 3px 0 #0a1228,inset 0 0 0 2px #3a4870;cursor:pointer;touch-action:none;}
+.db:active{transform:translateY(2px);background:#27365e;color:#fff;
+    box-shadow:0 1px 0 #0a1228,inset 0 0 0 2px #ffd23f;}
+.db.up{left:54px;top:0}.db.left{left:0;top:54px}.db.right{left:108px;top:54px}.db.down{left:54px;top:108px}
+.ab{display:flex;align-items:center;gap:16px;flex:0 0 auto;padding-bottom:6px;}
+.ab button{border:none;border-radius:50%;color:#1a1228;font-weight:700;cursor:pointer;
+    touch-action:none;box-shadow:0 4px 0 rgba(0,0,0,.45);}
+#btnB{width:58px;height:58px;font-size:20px;background:#8fb3ff;}
+#btnA{width:74px;height:74px;font-size:26px;background:#ffd23f;}
+.ab button:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.45);}
+@media (max-width:640px){
+  h2{display:none;} canvas{max-height:58vh;}
+  body{padding:8px 0 max(10px,env(safe-area-inset-bottom));display:flex;flex-direction:column;
+       align-items:center;min-height:100vh;box-sizing:border-box;}
+  #pad{margin-top:auto;}            /* パッドを画面下（親指が届く位置）へ */
+  #hint{font-size:11px;margin-top:8px;}
+}
 </style>
 </head>
 <body>
 <div id="loading"><div class="t">⚔ Q U E S T ⚔</div><div class="bar"><i></i></div><div class="s">よみこみちゅう…</div></div>
 <h2>― Q U E S T ―</h2>
 <div class="frame"><canvas id="game" width="800" height="800"></canvas></div>
-<div id="hint">WASD / 矢印で移動　Space / Enter で話す　スマホはタップ</div>
+<div id="pad">
+  <div class="dpad">
+    <button class="db up"    data-k="ArrowUp">▲</button>
+    <button class="db left"  data-k="ArrowLeft">◀</button>
+    <button class="db right" data-k="ArrowRight">▶</button>
+    <button class="db down"  data-k="ArrowDown">▼</button>
+  </div>
+  <div class="ab">
+    <button id="btnB">B</button>
+    <button id="btnA">A</button>
+  </div>
+</div>
+<div id="hint">十字キーで移動／A＝決定・話す／B＝メニュー　｜　PCは WASD・矢印・Space　｜　マップのタップ移動も可</div>
 
 <script>
 /*IMG_EMBED_START*/
@@ -759,7 +795,7 @@ function openWeaponShop(){
     .sort((a,b)=>a.price-b.price);
   const labels=all.map(it=>{
     const tag=it.wtype||it.atype, val=(it.atk!==undefined?"攻+"+it.atk:"守+"+it.def);
-    return "【"+tag+"】"+it.name+" "+val+" "+it.price+"G";
+    return { t:"【"+tag+"】"+it.name+"  "+val, p:it.price+"G" };   // 左:名前+増加値 / 右:値段（離して表示）
   });
   labels.push("やめる");
   const actions=all.map(it=>()=>buyEquip(it)); actions.push(closeService);
@@ -788,7 +824,7 @@ function doEquip(it, m){
 }
 function openItemShop(){
   const list=SHOP_ITEM.slice().sort((a,b)=>a.price-b.price);
-  const labels=list.map(it=> it.name+" "+it.price+"G"); labels.push("やめる");
+  const labels=list.map(it=> ({ t:it.name, p:it.price+"G" })); labels.push("やめる");
   const actions=list.map(it=>()=>buyItem(it)); actions.push(closeService);
   svcMenu(labels, actions);
 }
@@ -854,8 +890,8 @@ document.addEventListener("keydown",(e)=>{
     const s=service; if(!s) return;
     if(s.phase==="menu"){
       const n=s.labels.length;
-      if(k==="w"||e.key==="ArrowUp")    s.cursor=Math.max(0, s.cursor-2);
-      if(k==="s"||e.key==="ArrowDown")  s.cursor=Math.min(n-1, s.cursor+2);
+      if(k==="w"||e.key==="ArrowUp")    s.cursor=Math.max(0, s.cursor-1);
+      if(k==="s"||e.key==="ArrowDown")  s.cursor=Math.min(n-1, s.cursor+1);
       if(k==="a"||e.key==="ArrowLeft")  s.cursor=Math.max(0, s.cursor-1);
       if(k==="d"||e.key==="ArrowRight") s.cursor=Math.min(n-1, s.cursor+1);
       if(k===" "||e.key==="Enter") confirmSvc();
@@ -877,6 +913,33 @@ document.addEventListener("keyup",(e)=>{
   if(e.key==="ArrowUp")keys["w"]=false; if(e.key==="ArrowDown")keys["s"]=false;
   if(e.key==="ArrowLeft")keys["a"]=false; if(e.key==="ArrowRight")keys["d"]=false;
 });
+
+// ===== スマホ用 仮想ゲームパッド（十字キー＋A/B）。既存のキー/ボタン処理にそのまま流す =====
+// 十字＝矢印キーの押下/離す（移動は押しっぱなし／メニューは押した瞬間に1回）。A＝決定・話す・進む、B＝メニュー・もどる。
+function virtualB(){
+  if(mode==="field"){ clearMoveInput(); mode="status"; }                 // メニュー(ステータス)を開く
+  else if(mode==="status"){ mode="field"; }                              // 閉じる
+  else if(mode==="talk"){ advanceDialog(); }                             // 会話送り
+  else if(mode==="intro"){ advanceIntro(); }
+  else if(mode==="service"){ const s=service; if(s){ if(s.phase==="menu") closeService(); else advanceSvc(); } }  // 店を出る/送り
+  else if(mode==="battle"){ const b=battle; if(b && (b.state==="skill"||b.state==="spell")) enterCommand(); }     // 特技/呪文→戻る
+}
+(function setupPad(){
+  const pad=document.getElementById('pad'); if(!pad) return;
+  const fire=(type,key)=>document.dispatchEvent(new KeyboardEvent(type,{key}));
+  pad.querySelectorAll('.db').forEach(b=>{
+    const key=b.dataset.k;
+    const dn=e=>{ e.preventDefault(); fire('keydown',key); };
+    const up=e=>{ e.preventDefault(); fire('keyup',key); };
+    b.addEventListener('pointerdown',dn);
+    b.addEventListener('pointerup',up);
+    b.addEventListener('pointercancel',up);
+    b.addEventListener('pointerleave',up);
+    b.addEventListener('contextmenu',e=>e.preventDefault());
+  });
+  document.getElementById('btnA').addEventListener('pointerdown',e=>{ e.preventDefault(); joyButton(); });
+  document.getElementById('btnB').addEventListener('pointerdown',e=>{ e.preventDefault(); virtualB(); });
+})();
 
 function canvasPos(e){
   const r=canvas.getBoundingClientRect();
@@ -955,7 +1018,7 @@ function joyNavDo(up,down,left,right){
     if(b.state==="command"){ const nc=BATTLE_CMDS.length; if(up)b.cmd=(b.cmd+nc-1)%nc; if(down)b.cmd=(b.cmd+1)%nc; }
     else if(b.state==="spell"||b.state==="skill"){ const list=(b.state==="skill"?b.actor.skills:b.actor.spells)||[]; const n=list.length+1; if(up)b.spell=(b.spell+n-1)%n; if(down)b.spell=(b.spell+1)%n; }
   }else if(mode==="service"){ const s=service; if(!s||s.phase!=="menu")return; const n=s.labels.length;
-    if(up)s.cursor=Math.max(0,s.cursor-2); if(down)s.cursor=Math.min(n-1,s.cursor+2);
+    if(up)s.cursor=Math.max(0,s.cursor-1); if(down)s.cursor=Math.min(n-1,s.cursor+1);
     if(left)s.cursor=Math.max(0,s.cursor-1); if(right)s.cursor=Math.min(n-1,s.cursor+1);
   }
 }
@@ -1457,11 +1520,11 @@ function drawBattle(){
   ctx.textAlign="left";
   for(let i=0;i<_n;i++){
     const m=party[i], cx=32+i*_col;
-    ctx.font="19px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.fillStyle=m.down?"#777":"#fff";
+    ctx.font="20px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.fillStyle=m.down?"#777":"#fff";
     let nm=m.name; if(m.buffAtkT>0)nm+=" 攻↑"; if(m.buffDefT>0)nm+=" 守↑";
     ctx.fillText(nm, cx, 48);
-    ctx.font="15px monospace";
-    ctx.fillStyle=m.down?"#777":(m.hp<=m.maxhp*0.25?"#ff6a6a":"#cfe0ff"); ctx.fillText("HP "+m.hp+"/"+m.maxhp, cx, 74);
+    ctx.font="21px monospace";
+    ctx.fillStyle=m.down?"#777":(m.hp<=m.maxhp*0.25?"#ff6a6a":"#cfe0ff"); ctx.fillText("HP "+m.hp+"/"+m.maxhp, cx, 76);
     ctx.fillStyle=m.down?"#777":"#9fd0ff"; ctx.fillText("MP "+m.mp+"/"+m.maxmp, cx, 98);
   }
   // 敵（バナーの下〜下部ウィンドウの間の中央。枠と重ならない）
@@ -1530,7 +1593,7 @@ function drawStatus(){
     drawCharPortrait(m.img, x+w-70, ly-26, 88);   // 右側に立ち絵（正面ポーズ流用）
     ctx.fillStyle = m===stats ? "#ffe9a8" : "#cfe0ff"; ctx.font="24px 'Hiragino Kaku Gothic ProN',sans-serif";
     ctx.fillText(m.name+(m.job&&m.job!==m.name?"  "+m.job:"")+"  Lv"+m.lv, lx, ly); ly+=32;
-    ctx.font="20px monospace"; ctx.fillStyle="#fff";
+    ctx.font="22px monospace"; ctx.fillStyle="#fff";
     ctx.fillText("HP "+m.hp+"/"+m.maxhp+"   MP "+m.mp+"/"+m.maxmp, lx+16, ly); ly+=28;
     ctx.fillStyle="#9fb0d0";
     ctx.fillText("ちから "+atkOf(m)+"   まもり "+defOf(m), lx+16, ly); ly+=28;
@@ -1587,42 +1650,50 @@ function draw(){
 
 function drawService(){
   const s=service;
-  const mh=240, my=VIEW-mh-20, mw=VIEW-40;
-  // 看板タイトル
-  winBox(20,30,300,56);
-  ctx.fillStyle="#fff"; ctx.font="26px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
-  ctx.fillText(s.name, 44, 68);
-  // 所持金
-  winBox(VIEW-220,30,200,56);
-  ctx.fillStyle="#ffd23f"; ctx.font="24px monospace"; ctx.fillText(stats.gold+" G", VIEW-200, 68);
-  // 下ウィンドウ
-  winBox(20,my,mw,mh);
-  if(s.phase==="menu"){
+  ctx.fillStyle="rgba(0,0,8,0.62)"; ctx.fillRect(0,0,VIEW,VIEW);   // 背景を暗くして文字を見やすく
+  // 店名
+  winBox(20,28,380,60);
+  ctx.fillStyle="#fff"; ctx.font="28px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
+  ctx.fillText(s.name, 46, 68);
+  // 所持金（右寄せ）
+  winBox(VIEW-250,28,230,60);
+  ctx.fillStyle="#ffd23f"; ctx.font="26px monospace"; ctx.textAlign="right";
+  ctx.fillText(stats.gold+" G", VIEW-44, 68); ctx.textAlign="left";
+  // メイン窓：メニューは縦長で1カラム（長い商品名でも重ならない）、メッセージは下段の小窓
+  const isMenu = s.phase==="menu";
+  const wh = isMenu ? 470 : 230, wx=20, ww=VIEW-40, wy=VIEW-wh-20;
+  winBox(wx,wy,ww,wh);
+  if(isMenu){
     s.rects=[];
-    const PER=8, page=Math.floor(s.cursor/PER), start=page*PER, end=Math.min(start+PER,s.labels.length);
-    const colX=[60, 60+(mw-80)/2], y0=my+44, lh=44;
-    ctx.font="24px 'Hiragino Kaku Gothic ProN',sans-serif";
+    const PER=7, page=Math.floor(s.cursor/PER), start=page*PER, end=Math.min(start+PER,s.labels.length);
+    const tx=wx+64, y0=wy+62, lh=58;
+    ctx.font="26px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
     for(let i=start;i<end;i++){
-      const k=i-start, col=k%2, row=Math.floor(k/2);
-      const bx=colX[col], by=y0+row*lh;
-      if(i===s.cursor){ ctx.fillStyle="#ffd23f"; ctx.fillText("▶",bx-28,by); }
-      ctx.fillStyle = i===s.cursor ? "#fff":"#9aa0b0";
-      ctx.fillText(s.labels[i], bx, by);
-      s.rects.push({x:bx-30,y:by-30,w:(mw-80)/2-8,h:36,i});
+      const by=y0+(i-start)*lh;
+      if(i===s.cursor){                                          // 選択行を帯でハイライト
+        ctx.fillStyle="rgba(255,210,63,0.16)"; roundRect(wx+18,by-38,ww-36,50,8); ctx.fill();
+        ctx.fillStyle="#ffd23f"; ctx.fillText("▶", wx+28, by);
+      }
+      const lab=s.labels[i], baseCol=(i===s.cursor?"#fff":"#c8d0e0");
+      if(typeof lab==="string"){ ctx.fillStyle=baseCol; ctx.fillText(lab, tx, by); }
+      else{                                                      // 値段は右端に金色で（増加値と離して見やすく）
+        ctx.fillStyle=baseCol; ctx.fillText(lab.t, tx, by);
+        ctx.fillStyle="#ffd23f"; ctx.textAlign="right"; ctx.fillText(lab.p, wx+ww-40, by); ctx.textAlign="left";
+      }
+      s.rects.push({x:wx+18,y:by-38,w:ww-36,h:50,i});            // 行全体をタップ対象に
     }
     const pages=Math.ceil(s.labels.length/PER);
     if(pages>1){
       ctx.fillStyle="#9aa0b0"; ctx.font="20px sans-serif"; ctx.textAlign="center";
-      ctx.fillText("ページ "+(page+1)+" / "+pages, VIEW/2, my+mh-18); ctx.textAlign="left";
+      ctx.fillText("◀  "+(page+1)+" / "+pages+"  ▶", VIEW/2, wy+wh-22); ctx.textAlign="left";
     }
   }else{
-    ctx.fillStyle="#fff"; ctx.font="26px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
-    const line=(s.msgs[s.msgIdx]||"").slice(0,s.shown);
-    ctx.fillText(line, 50, my+70);
+    ctx.fillStyle="#fff"; ctx.font="28px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
+    ctx.fillText((s.msgs[s.msgIdx]||"").slice(0,s.shown), wx+40, wy+78);
     const full=s.msgs[s.msgIdx]||"";
     if(s.shown>=full.length && Math.floor(Date.now()/400)%2){
       ctx.fillStyle="#ffd23f"; ctx.beginPath();
-      ctx.moveTo(VIEW-58,my+170); ctx.lineTo(VIEW-42,my+170); ctx.lineTo(VIEW-50,my+182); ctx.fill();
+      ctx.moveTo(VIEW-62,wy+wh-46); ctx.lineTo(VIEW-44,wy+wh-46); ctx.lineTo(VIEW-53,wy+wh-32); ctx.fill();
     }
   }
 }

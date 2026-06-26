@@ -47,7 +47,7 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 3. **ゲーム選択画面**が出る → 迷路 / RPG を選んでプレイ
    - 操作：PCは **WASD / 矢印キー**、スマホは**画面タップ**（RPGは画面下の仮想ボタンも使えます）
 
-> **家のWiFiに繋いで遊ぶ場合**：`arduino_secrets.h.example` を同じフォルダに `arduino_secrets.h` という名前でコピーして自分の **2.4GHz** WiFi情報を記入し、`GameSelect.ino` の `#define PORTABLE_DEMO 1` を **`0`** に変えてから書き込みます。起動後、OLEDかシリアルモニタ(9600bps)に出る `192.168.x.x` をブラウザで開きます。
+> **家のWiFi／実機ジョイスティックを使う場合**：初期状態の *デモモード*（`GameSelect.ino` の `#define PORTABLE_DEMO 1`）は「電源を入れたらすぐ遊べる」ために、**家のWiFi(STA)には繋がず、ジョイスティック端子も読みません**（未接続でも誤動作しないよう入力は中立値を返します）。家のWiFiやジョイスティックを使うときは、`arduino_secrets.h.example` を同じフォルダに `arduino_secrets.h` という名前でコピーして自分の **2.4GHz** WiFi情報を記入し、`PORTABLE_DEMO` を **`0`** に変えてから書き込みます。起動後、OLEDかシリアルモニタ(9600bps)に出る `192.168.x.x` をブラウザで開きます。
 
 ---
 

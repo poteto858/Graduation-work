@@ -215,9 +215,9 @@ const GAME_DATA={
     { name:"ホネナイト", spr:"bone",  maxhp:20, atk:15, def:7, exp:13, gold:11, weak:["火"], resist:["氷"], grp:2 }
   ]
 };
-// レアモンスター：ゴールドブルン（守備・回避が高く逃げやすいが、倒すと大量の経験値）
-const GOLD_SLIME={ name:"ゴールドブルン", spr:"slime", tint:"#ffd23f", maxhp:10, atk:6, def:60, exp:500, gold:120,
-                   weak:[], resist:[], grp:1, evasion:0.6, fleeChance:0.45 };
+// レアモンスター：ゴールドブルン（少し逃げやすい＝素早く倒せば大量経験値。序盤レベリング用に物理でも倒せる調整）
+const GOLD_SLIME={ name:"ゴールドブルン", spr:"slime", tint:"#ffd23f", maxhp:16, atk:6, def:6, exp:500, gold:150,
+                   weak:[], resist:[], grp:1, evasion:0.12, fleeChance:0.2 };
 // 魔王（ラスボス）。専用ドット絵(maoh)＋固有行動
 const MAOH={ name:"まおう", spr:"maoh", maxhp:120, atk:28, def:12, exp:200, gold:300, weak:[], resist:[], big:true, moveChance:0.6,
   moves:[{name:"あんこくは",kind:"all",mult:0.9},{name:"こんとんのいちげき",kind:"heavy"},{name:"やみのちから",kind:"healSelf",power:25}] };

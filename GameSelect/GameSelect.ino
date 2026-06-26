@@ -74,6 +74,7 @@ void renderMatrix(){
   if(ledPlayer>=0 && ledBlink){ int w=ledPlayer>>5; f[w] |= (1UL << (31-(ledPlayer&31))); }
   matrix.loadFrame(f);
 }
+void ledClear(){ ledMapOn=false; ledPlayer=-1; ledFrame[0]=ledFrame[1]=ledFrame[2]=0; renderMatrix(); }  // ゲーム切替/選択画面でミニマップを消す（前のRPGマップを持ち越さない）
 // クエリから符号なし32bit整数を取り出す（uint32はlongに収まらないので strtoul）
 uint32_t qU32(const String& p, const char* k){
   int i=p.indexOf(k); if(i<0) return 0; i+=strlen(k);
@@ -341,12 +342,14 @@ void loop(){
       client.stop();
     }
     else if(path.startsWith("/maze")){
+      ledClear();                                   // RPGのミニマップを消してから迷路へ
       sendGzipPage(client, MAZE_GZ, MAZE_GZ_LEN);   // 迷路ゲーム
     }
     else if(path.startsWith("/rpg")){
       sendGzipPage(client, PAGE_GZ, PAGE_GZ_LEN);   // RPG_Quest
     }
     else if(path=="/" || path=="/index.html" || path.startsWith("/?")){
+      ledClear();                        // 選択画面ではミニマップを消す
       sendHtml(client, LAUNCHER_HTML);   // ゲーム選択画面（?付きURLでもOK＝キャッシュ回避用）
     }
     else if(apMode){

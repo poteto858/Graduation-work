@@ -902,14 +902,28 @@ function eventMaohBattle(){
     "　ここで ほうむって くれよう！」",
     "魔王が たちはだかった！"
   ], ()=>{
-    startBattle(MAOH, ()=>{                 // 勝利
-      flags.maohDefeated=true; saveGame();
-      showScene([
-        "魔王を うちたおした！",
-        "せかいに ひかりが もどった。",
-        "勇者たちの ぼうけんは これからも つづく——",
-        "ー  THE END  ー"
-      ]);
+    startBattle(MAOH, ()=>{                 // 勝利＝エンディング
+      flags.maohDefeated=true;
+      const allies=party.slice(1).map(m=>m.name);
+      const lines=[
+        "魔王を うちたおした——！",
+        "まばゆい ひかりが せかいを つつみ、",
+        "ながい よるが あけ、大地に へいわが もどった。",
+        allies.length ? ("勇者は "+allies.join("、")+" と かたを たたきあい、しょうりを わかちあった。")
+                      : "勇者は しずかに そらを みあげ、しょうりを かみしめた。",
+        "やがて 旅は おわり、勇者たちは ふるさとへ かえる。",
+        "町の ひとびとは えがおで むかえた。",
+        "「ありがとう、勇者さま！」　「えいゆう ばんざい！」",
+        "まおうの きえた せかいに、おだやかな 日々が もどる。",
+        "そして——勇者たちの ものがたりは、まだ つづいていく。",
+        "ー  おわり  ー",
+        "（ぼうけんを セーブして、はじまりの 町へ もどります）"
+      ];
+      showScene(lines, ()=>{
+        for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; }   // 全員 全回復
+        saveGame();                          // クリアデータを 自動セーブ
+        loadMap("town", 9, 11);              // はじまりの町へ もどる
+      });
     });
   });
 }

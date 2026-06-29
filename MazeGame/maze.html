@@ -29,11 +29,28 @@
       transition:transform .1s,border-color .1s,box-shadow .1s;}
  .btn:hover{border-color:#ffd45e;box-shadow:0 4px 14px #0008;transform:translateY(-1px);}
  .btn.gold{border-color:#caa23a;background:linear-gradient(180deg,#3a3417,#2a2410);}
+ /* スマホ用 仮想ゲームパッド（十字＋A/B）。RPG版と同じ見た目 */
+ #pad{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;
+      width:min(440px,90vw);margin:8px auto 0;padding:0 4px;touch-action:none;
+      -webkit-user-select:none;user-select:none;}
+ .dpad{position:relative;width:162px;height:162px;flex:0 0 auto;}
+ .db{position:absolute;width:54px;height:54px;border:none;border-radius:12px;padding:0;
+     background:rgba(26,34,64,.9);color:#cfe0ff;font-size:20px;line-height:54px;text-align:center;
+     box-shadow:0 3px 0 #0a1228,inset 0 0 0 2px #3a4870;cursor:pointer;touch-action:none;}
+ .db:active{transform:translateY(2px);background:#27365e;color:#fff;
+     box-shadow:0 1px 0 #0a1228,inset 0 0 0 2px #ffd23f;}
+ .db.up{left:54px;top:0}.db.left{left:0;top:54px}.db.right{left:108px;top:54px}.db.down{left:54px;top:108px}
+ .ab{display:flex;align-items:center;gap:14px;flex:0 0 auto;padding-bottom:6px;}
+ .ab button{border:none;border-radius:50%;color:#1a1228;font-weight:700;cursor:pointer;
+     touch-action:none;box-shadow:0 4px 0 rgba(0,0,0,.45);}
+ #btnB{width:58px;height:58px;font-size:20px;background:#8fb3ff;}
+ #btnA{width:74px;height:74px;font-size:17px;background:#ffd23f;}
+ .ab button:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.45);}
 </style>
 </head>
 <body>
 <div class="titlebar"><span class="em">🧩</span><h1>迷路ゲーム</h1></div>
-<div class="note">PC: WASD / 矢印で移動・Enter決定・Rリスタート　｜　スマホ: タップ　｜　ジョイスティック対応</div>
+<div class="note">PC: WASD / 矢印で移動・Enter決定・Rリスタート　｜　スマホ: 下の十字ボタン／タップ　｜　ジョイスティック対応</div>
 <div class="screen"><canvas id="game" width="800" height="800"></canvas></div>
 <div class="hud">
  <div class="chip"><span class="ic">⏱️</span><span id="timer">0.0s</span></div>
@@ -44,6 +61,18 @@
  <button id="restartBtn" class="btn">↺ やり直す</button>
  <button id="stagesBtn" class="btn">▦ ステージ選択</button>
  <button class="btn gold" onclick="location.href='/'">← ゲーム選択</button>
+</div>
+<div id="pad">
+ <div class="dpad">
+  <button class="db up"    data-k="ArrowUp">▲</button>
+  <button class="db left"  data-k="ArrowLeft">◀</button>
+  <button class="db right" data-k="ArrowRight">▶</button>
+  <button class="db down"  data-k="ArrowDown">▼</button>
+ </div>
+ <div class="ab">
+  <button id="btnB">↺</button>
+  <button id="btnA">決定</button>
+ </div>
 </div>
 
 <script>
@@ -246,6 +275,23 @@ document.getElementById("restartBtn").addEventListener("click",()=>{
   if(screen==="select") loadStage(selIndex); else loadStage(stageIndex);
 });
 document.getElementById("stagesBtn").addEventListener("click",()=>{ screen="select"; });
+// スマホ用 仮想ゲームパッド（十字＝矢印キーを合成発火＝既存の移動/選択ロジックを再利用／A=決定(Enter)・B=やり直す）
+(function setupPad(){
+  const pad=document.getElementById('pad'); if(!pad) return;
+  const fire=(type,key)=>document.dispatchEvent(new KeyboardEvent(type,{key}));
+  pad.querySelectorAll('.db').forEach(b=>{
+    const key=b.dataset.k;
+    const dn=e=>{ e.preventDefault(); fire('keydown',key); };
+    const up=e=>{ e.preventDefault(); fire('keyup',key); };
+    b.addEventListener('pointerdown',dn);
+    b.addEventListener('pointerup',up);
+    b.addEventListener('pointercancel',up);
+    b.addEventListener('pointerleave',up);
+    b.addEventListener('contextmenu',e=>e.preventDefault());
+  });
+  document.getElementById('btnA').addEventListener('pointerdown',e=>{ e.preventDefault(); fire('keydown','Enter'); });
+  document.getElementById('btnB').addEventListener('pointerdown',e=>{ e.preventDefault(); document.getElementById('restartBtn').click(); });
+})();
 
 function canvasPos(e){
   const rect=canvas.getBoundingClientRect();

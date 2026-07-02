@@ -18,3 +18,12 @@ Thumbs.db
 *.bin
 *.elf
 build/
+
+# 開発用ローカルスクリプト（意図的に非コミット。READMEに未同梱と明記済み）
+_*.py
+**/_*.py
+*.bat
+**/*.bat
+
+# ローカル作業フォルダ
+arduinoIDE/

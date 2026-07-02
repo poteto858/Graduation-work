@@ -15,6 +15,15 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 >
 > **遊ぶ／デモするなら `GameSelect/` を書き込めばOK**（迷路もRPGも入っていて、起動時に選べます）。
 
+<p align="center">
+  <img src="RPG_Quest/報告画像/fig2_party.png" width="45%" alt="RPG：仲間と隊列を組んで冒険">
+  <img src="RPG_Quest/報告画像/fig3_battle.png" width="45%" alt="RPG：ターン制バトル">
+</p>
+<p align="center">
+  <img src="MazeGame/報告画像/maze_play.png" width="45%" alt="迷路ゲーム">
+  <img src="GameSelect/報告画像/launcher.png" width="45%" alt="起動時のゲーム選択画面">
+</p>
+
 ---
 
 ## ▶ すぐ遊ぶ（ダウンロード → 書き込むだけ）
@@ -45,7 +54,7 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 1. スマホの**WiFi設定で「GameSelect」**（パスワード無し）に接続
 2. 画面が自動で開かないときは、ブラウザで **`http://192.168.4.1`** を開く
 3. **ゲーム選択画面**が出る → 迷路 / RPG を選んでプレイ
-   - 操作：PCは **WASD / 矢印キー**、スマホは**画面タップ**（RPGは画面下の仮想ボタンも使えます）
+   - 操作：PCは **WASD / 矢印キー**、スマホは**画面下の仮想十字パッド（十字＋A/B）**やタップ（迷路・RPG共通）
 
 > **家のWiFi／実機ジョイスティックを使う場合**：初期状態の *デモモード*（`GameSelect.ino` の `#define PORTABLE_DEMO 1`）は「電源を入れたらすぐ遊べる」ために、**家のWiFi(STA)には繋がず、ジョイスティック端子も読みません**（未接続でも誤動作しないよう入力は中立値を返します）。家のWiFiやジョイスティックを使うときは、`arduino_secrets.h.example` を同じフォルダに `arduino_secrets.h` という名前でコピーして自分の **2.4GHz** WiFi情報を記入し、`PORTABLE_DEMO` を **`0`** に変えてから書き込みます。起動後、OLEDかシリアルモニタ(9600bps)に出る `192.168.x.x` をブラウザで開きます。
 
@@ -89,9 +98,20 @@ flowchart LR
 
 - ハードウェア: Arduino UNO R4 WiFi / Wi-Fiルーター（2.4GHz帯）/ PC・スマホ
 - ソフトウェア: Arduino IDE / HTML・CSS・JavaScript（Canvas API）
-- ライブラリ: `WiFiS3`（標準）/ `Adafruit NeoPixel`（RPG_Quest・GameSelect）
+- ライブラリ: `WiFiS3`（標準）/ `Adafruit NeoPixel`（RPG_Quest・GameSelect）/ `Adafruit SSD1306`・`Adafruit GFX`・`QRCode`（OLEDのQR表示用）
+
+## スペック
+
+| 項目 | 値 |
+|------|----|
+| フラッシュ使用率（256KB中） | MazeGame 37% ／ RPG_Quest 82% ／ GameSelect 89% |
+| RAM使用率（32KB中） | 約37% |
+| RPGの配信HTML | 約224KB → **gzip 約118KB** に圧縮して配信 |
+| ゲーム規模（RPG） | マップ7・敵12種・仲間3人（最大4人パーティ）・エンディングあり |
 
 ## 共通セットアップ
+
+> ※上の「すぐ遊ぶ」（GameSelectのデモモード）なら `arduino_secrets.h` は**不要**です。以下は家のWi-Fiに接続して使う場合。
 
 1. `arduino_secrets.h.example` を **`arduino_secrets.h`** にコピーし、自分のWi-Fi（2.4GHz帯）のSSID・パスワードを記入。
 2. 遊びたいフォルダ（`MazeGame/` / `RPG_Quest/` / `GameSelect/`）を Arduino IDE で開き、`arduino_secrets.h` を同じフォルダに置いて書き込み。
@@ -107,7 +127,8 @@ flowchart LR
 
 ### 手順（外）
 1. **`GameSelect/GameSelect.ino` を書き込む**。電源はUSBモバイルバッテリーをUSB-Cに挿すだけ。
-2. **ジョイスティックのボタンを押しながらリセット**（＝強制AP起動）。OLEDに `Wi-Fi: GameSelect` ＋ QR が表示される。
+2. 初期状態（デモモード）なら**電源を入れるだけで自動的にAPが起動**し、OLEDに `Wi-Fi: GameSelect` ＋ QR が表示される。
+   （`PORTABLE_DEMO 0` で家Wi-Fi運用にしている場合は、ジョイスティックのボタンを押しながらリセットすると即AP）
 3. スマホで **①のQR** を読む → パスワード不要で「GameSelect」に接続。
 4. **②のQR（または `192.168.4.1/?go`）** を読む／開く → **ゲーム選択画面**（迷路 / RPG を選ぶ）。
 
@@ -119,3 +140,10 @@ flowchart LR
 > - iPhoneの「インターネット未接続」警告は **「このまま接続」** を選ぶ。
 > - **近くに家のWi-Fiがあるとスマホがそちらへ戻る**ので、必ず**屋外**で。
 > - OLEDに **`Wi-Fi: GameSelect`** と出ていればGameSelectが動いています（`RPG_Quest` 等なら別スケッチを焼いています）。
+
+---
+
+## ライセンス
+
+本リポジトリは研修卒業制作の**成果公開用**です。LICENSE ファイルは付与していません（All rights reserved）。
+閲覧・学習目的での参照は歓迎しますが、コード・画像の再配布はご遠慮ください。

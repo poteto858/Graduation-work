@@ -27,7 +27,7 @@ Arduino が「どのURLが来たか」で配信を変えます（2つの大き�
 
 ## 開発の流れ（重要）
 - **各ゲームの中身は `MazeGame/` と `RPG_Quest/` で開発**します。GameSelect は“集めて配信するだけ”。
-- 各ゲームを更新したら `_sync.py` を実行して最新の生成物を取り込みます：
+- 各ゲームを更新したら `_sync.py`（開発用ローカルスクリプト・リポジトリ未同梱。単純コピーなので手動コピーでも可）で最新の生成物を取り込みます：
   - `MazeGame/maze_gz.h` → `GameSelect/maze_gz.h`
   - `RPG_Quest/webpage_gz.h` → `GameSelect/webpage_gz.h`
   - `RPG_Quest/maps.h` → `GameSelect/maps.h`
@@ -38,12 +38,12 @@ RPG_Quest と同じ（ジョイスティック VRx→A0 / VRy→A1 / SW→D2、�
 
 - **OLED（SSD1306 128×64）**：接続用QRを表示（外で遊ぶ用）。`SDA→SDA / SCL→SCL`（I2C・アドレス0x3C）、`VCC→3.3V`、`GND→GND`。要ライブラリ：**Adafruit SSD1306 / Adafruit GFX / QRCode**。
   - AP時：Wi-Fi参加QR（`GameSelect`）を表示／STA時：`http://<IP>/` のQRを表示。
-- **キャプティブポータル**：APにつなぐと**自動でゲーム選択画面が開く**（簡易DNSで全ドメインを 192.168.4.1 に誘導）。②のURLを開く操作は不要。
+- **キャプティブポータル**：APにつなぐと**自動でゲーム選択画面が開くことが多い**（簡易DNSで全ドメインを 192.168.4.1 に誘導）。端末依存で開かない場合は `192.168.4.1/?go` を開けば確実。
 
-> ハードが無くてもキーボード（WASD/矢印）・スマホタップで全機能が動作します。
+> ハードが無くてもキーボード（WASD/矢印）・スマホ（**仮想十字パッド**／タップ）で全機能が動作します。
 
 ## ビルド
-1. `arduino_secrets.h` をこのフォルダに置く（Wi-Fi 2.4GHz帯）。
+1. （任意）家のWi-Fiで使う場合のみ `arduino_secrets.h` をこのフォルダに置く（2.4GHz帯）。**無くてもビルドできます**＝初期状態のデモモード（`#define PORTABLE_DEMO 1`）はAP起動なのでWi-Fi情報が不要。
 2. `GameSelect.ino` ＋ `launcher.h` / `maze_gz.h` / `webpage_gz.h` / `maps.h` を同じフォルダに置いて書き込み。
 3. シリアルモニタ（9600bps）の IP に `http://<IP>/` でアクセス → 選択画面。
 

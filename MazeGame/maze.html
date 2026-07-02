@@ -281,8 +281,9 @@ document.getElementById("stagesBtn").addEventListener("click",()=>{ screen="sele
   const fire=(type,key)=>document.dispatchEvent(new KeyboardEvent(type,{key}));
   pad.querySelectorAll('.db').forEach(b=>{
     const key=b.dataset.k;
-    const dn=e=>{ e.preventDefault(); fire('keydown',key); };
-    const up=e=>{ e.preventDefault(); fire('keyup',key); };
+    let held=false;   // 押していないのに pointerleave(ホバー離脱)で keyup を撃ち、キーボード移動を打ち消さないため
+    const dn=e=>{ e.preventDefault(); held=true; fire('keydown',key); };
+    const up=e=>{ e.preventDefault(); if(!held) return; held=false; fire('keyup',key); };
     b.addEventListener('pointerdown',dn);
     b.addEventListener('pointerup',up);
     b.addEventListener('pointercancel',up);

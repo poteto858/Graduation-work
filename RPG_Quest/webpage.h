@@ -702,12 +702,18 @@ function confirmSkill(){
   castAction(m,s);
 }
 function actorItem(){
-  if(stats.herb<=0){ queueMsg(["やくそうが ない！"], enterCommand); return; }
   const m=battle.actor;
-  stats.herb--; const h=20+Math.floor(Math.random()*8);
   const tgt=aliveMembers().slice().sort((x,y)=>(x.hp/x.maxhp)-(y.hp/y.maxhp))[0]||m;
-  tgt.hp=Math.min(tgt.maxhp, tgt.hp+h); fx("heal");
-  queueMsg([m.name+"は やくそうを つかった！", tgt.name+"の HPが "+h+" かいふく！"], afterActorAction);
+  if(stats.herb>0){                          // やくそう優先（安い方から使う）
+    stats.herb--; const h=20+Math.floor(Math.random()*8);
+    tgt.hp=Math.min(tgt.maxhp, tgt.hp+h); fx("heal");
+    queueMsg([m.name+"は やくそうを つかった！", tgt.name+"の HPが "+h+" かいふく！"], afterActorAction);
+  }else if(stats.elixir>0){                  // やくそうが切れたらエリクサー＝HP/MP完全回復
+    stats.elixir--; tgt.hp=tgt.maxhp; tgt.mp=tgt.maxmp; fx("heal");
+    queueMsg([m.name+"は エリクサーを つかった！", tgt.name+"の HPとMPが かんぜんに かいふくした！"], afterActorAction);
+  }else{
+    queueMsg(["どうぐを もっていない！"], enterCommand);
+  }
 }
 function tryFlee(){
   if(battle.noFlee){ queueMsg(["にげられない！"], enterCommand); return; }   // ボス/強制戦闘は逃走不可
@@ -903,7 +909,7 @@ function eventMaohBattle(){
     "魔王が たちはだかった！"
   ], ()=>{
     startBattle(MAOH, ()=>{                 // 勝利＝エンディング
-      flags.maohDefeated=true;
+      flags.maohDefeated=true; saveGame();  // クリアを即保存（エンディング送り中にリロードしても消えない）
       const allies=party.slice(1).map(m=>m.name);
       const lines=[
         "魔王を うちたおした——！",
@@ -960,8 +966,9 @@ function closeService(){
 }
 function innStay(){
   if(stats.gold<INN_COST){ svcMsg(["おかねが たりないようだ。"], ()=>openService(service.b)); return; }
+  const revived=party.some(m=>m.down);
   stats.gold-=INN_COST; for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; } saveGame();   // 全員を全回復＆蘇生
-  svcMsg(["ゆっくり おやすみなさい…","HPとMPが かいふくし、","ぼうけんを セーブした！"], closeService);
+  svcMsg(["ゆっくり おやすみなさい…", ...(revived?["たおれた なかまも めをさました！"]:[]), "HPとMPが かいふくし、","ぼうけんを セーブした！"], closeService);
 }
 function churchPray(){
   for(const m of party){ if(!m.down){ m.hp=m.maxhp; m.mp=m.maxmp; } }   // 生存メンバー全員のHP/MP回復（蘇生は「そせい」担当）
@@ -1110,7 +1117,7 @@ document.addEventListener("keyup",(e)=>{
 // 十字＝矢印キーの押下/離す（移動は押しっぱなし／メニューは押した瞬間に1回）。A＝決定・話す・進む、B＝メニュー・もどる。
 function virtualB(){
   if(mode==="field"){ clearMoveInput(); mode="status"; }                 // メニュー(ステータス)を開く
-  else if(mode==="status"){ mode="field"; }                              // 閉じる
+  else if(mode==="status"){ mode="field"; clearMoveInput(); }            // 閉じる（残ったタップ目標で歩き出さない）
   else if(mode==="talk"){ advanceDialog(); }                             // 会話送り
   else if(mode==="intro"){ advanceIntro(); }
   else if(mode==="service"){ const s=service; if(s){ if(s.type==="choice"){ s.actions[s.labels.length-1](); } else if(s.phase==="menu") closeService(); else advanceSvc(); } }  // 店を出る/送り（二択は引き返す）
@@ -1220,7 +1227,7 @@ function joyButton(){
   if(mode==="intro"){ advanceIntro(); return; }
   if(mode==="field"){ const n=npcInFront(); if(n) talkTo(n); }
   else if(mode==="talk"){ advanceDialog(); }
-  else if(mode==="status"){ mode="field"; }
+  else if(mode==="status"){ mode="field"; clearMoveInput(); }   // 残ったタップ目標で歩き出さない
   else if(mode==="battle"){ const b=battle; if(!b)return;
     if(b.state==="msg") advanceBattleMsg(); else if(b.state==="command") confirmCommand(); else if(b.state==="skill") confirmSkill(); else if(b.state==="spell") confirmSpell(); }
   else if(mode==="service"){ const s=service; if(!s)return;

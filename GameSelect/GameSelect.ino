@@ -363,6 +363,7 @@ void loop(){
       client.stop();
     }
     else{
+      ledClear();                        // 選択画面に戻る全経路でミニマップを消す
       sendHtml(client, LAUNCHER_HTML);   // STA時の未知URLは選択画面
     }
   }

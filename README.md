@@ -81,6 +81,12 @@ flowchart LR
 
 ## 実機ハードウェア
 
+<p align="center">
+  <img src="RPG_Quest/回路図.png" width="640" alt="配線図：Arduino UNO R4 WiFi ＋ OLED(QR表示) / ジョイスティック / WS2812 RGB LED / パッシブブザー＋ボリューム">
+</p>
+
+> ※図はUNO表記ですが、実機は **Arduino UNO R4 WiFi**（配線は同じ）。
+
 | 部品 | 役割 | 接続 | 使う作品 |
 |------|------|------|---------|
 | ジョイスティックモジュール | 移動・メニュー操作 | VRx→A0 / VRy→A1 / SW→D2 | 全作品 |

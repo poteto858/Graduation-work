@@ -40,6 +40,16 @@ const int PIN_VRX = A0;
 const int PIN_VRY = A1;
 const int PIN_SW  = 2;
 
+// ジョイスティックの「中心」を起動時に自動でならす。
+// 未接続で端子が浮いていても、その浮いた値をそのまま"中心"として記録し直すので、
+// 以後もほぼ同じ値が続く限りズレ0(中立)のまま扱われる＝配線の有無を問わず誤動作しない。
+int baseX = 512, baseY = 512;
+void calibrateJoystick(){
+  long sx=0, sy=0; const int N=8;
+  for(int i=0;i<N;i++){ sx+=analogRead(PIN_VRX); sy+=analogRead(PIN_VRY); delay(2); }
+  baseX = sx/N; baseY = sy/N;
+}
+
 // ===== OLEDにQRを表示（白地に黒モジュール＋余白）。右に説明2行＋アドレス（折り返し表示） =====
 // addr = 画面が自動で開かない時に手入力するアドレス。10文字ごとに折り返して下に表示する。
 void showQR(const char* text, const char* l1, const char* l2, const char* addr){
@@ -68,6 +78,7 @@ void showQR(const char* text, const char* l1, const char* l2, const char* addr){
 void setup(){
   Serial.begin(9600);
   pinMode(PIN_SW, INPUT_PULLUP);
+  calibrateJoystick();
   Wire.begin();
   if(oled.begin(SSD1306_SWITCHCAPVCC, 0x3C) || oled.begin(SSD1306_SWITCHCAPVCC, 0x3D)) Serial.println("[OLED] ready");
   else Serial.println("[OLED] not found at 0x3C/0x3D - check SDA/SCL pins(not A4/A5), VCC, GND");
@@ -135,7 +146,9 @@ void loop(){
 
     if(path.startsWith("/state")){
       // ジョイスティック値を JSON で返す（ブラウザが約120msごとに取得）
-      int vx=analogRead(PIN_VRX), vy=analogRead(PIN_VRY);
+      int rawX=analogRead(PIN_VRX), rawY=analogRead(PIN_VRY);
+      int vx=constrain(512+(rawX-baseX), 0, 1023);   // 起動時の中心からのズレに変換（未接続ならズレ0=中立）
+      int vy=constrain(512+(rawY-baseY), 0, 1023);
       int b=(digitalRead(PIN_SW)==LOW)?1:0;
       String json="{\"x\":"+String(vx)+",\"y\":"+String(vy)+",\"b\":"+String(b)+"}";
       client.println("HTTP/1.1 200 OK");

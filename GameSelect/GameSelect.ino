@@ -43,15 +43,28 @@ Adafruit_SSD1306 oled(128, 64, &Wire, -1);  // QR表示用OLED（I2C SDA/SCL, �
 
 // ★デモモード（1=ON / 0=普段）：周辺機器（ジョイ等）を外し、OLEDとArduinoだけで動かす設定。
 //   ・起動と同時にAP(GameSelect)を立てる（家Wi-Fiを待たない＝電源を入れたらすぐ使える）
-//   ・ジョイ未接続でも端子フローティングで誤入力しないよう /state は中立(512,512,0)を返す
+//   ※ジョイスティック未接続でも誤動作しない処理は calibrateJoystick() が起動時の値を
+//     中心として記録することで実現しており、このフラグの値に関係なく常に有効（繋いでいても未接続でも安全）。
 //   ※ブザー/NeoPixelは未接続でも無害、ミニマップは本体内蔵LEDで表示される。普段に戻すなら 0。
-#define PORTABLE_DEMO 1
+#define PORTABLE_DEMO 0
 
 // ===== ハードウェア =====
 // ジョイスティック: VRx->A0  VRy->A1  SW->D2(INPUT_PULLUP)  VCC->5V  GND->GND
+// 実配線の有無は起動時に自動判定する（detectJoystick）ので、繋いでいても未接続でもそのまま動く。
 const int PIN_VRX = A0;
 const int PIN_VRY = A1;
 const int PIN_SW  = 2;
+
+// ジョイスティックの「中心」を起動時に自動でならす。
+// 未接続で端子が浮いていても、その浮いた値をそのまま"中心"として記録し直すので、
+// 以後もほぼ同じ値が続く限りズレ0(中立)のまま扱われる＝配線の有無を問わず誤動作しない。
+int baseX = 512, baseY = 512;
+void calibrateJoystick(){
+  long sx=0, sy=0; const int N=8;
+  for(int i=0;i<N;i++){ sx+=analogRead(PIN_VRX); sy+=analogRead(PIN_VRY); delay(2); }
+  baseX = sx/N; baseY = sy/N;
+}
+
 // パッシブブザー: 信号->D9, もう片足->ポテンショメータ(中央)->外側->GND（直列で音量調整）
 const int PIN_BUZZ = 9;
 // WS2812 RGBテープ: DIN->D6, 5V->5V, GND->GND
@@ -166,6 +179,7 @@ void handleDNS(){
 void setup(){
   Serial.begin(9600);
   pinMode(PIN_SW, INPUT_PULLUP);
+  calibrateJoystick();
   pinMode(PIN_BUZZ, OUTPUT);
   strip.begin(); strip.show();   // 全消灯
   matrix.begin();                // 内蔵LEDマトリクス開始
@@ -290,12 +304,10 @@ void loop(){
     String path = (sp1>=0&&sp2>sp1) ? reqLine.substring(sp1+1, sp2) : "/";
 
     if(path.startsWith("/state")){
-#if PORTABLE_DEMO
-      int vx=512, vy=512, b=0;                  // デモ:ジョイ未接続→中立を返し端子フローティングの誤入力を防ぐ
-#else
-      int vx=analogRead(PIN_VRX), vy=analogRead(PIN_VRY);
+      int rawX=analogRead(PIN_VRX), rawY=analogRead(PIN_VRY);
+      int vx=constrain(512+(rawX-baseX), 0, 1023);   // 起動時の中心からのズレに変換（未接続ならズレ0=中立。デモ/普段どちらでも安全）
+      int vy=constrain(512+(rawY-baseY), 0, 1023);
       int b=(digitalRead(PIN_SW)==LOW)?1:0;
-#endif
       String json="{\"x\":"+String(vx)+",\"y\":"+String(vy)+",\"b\":"+String(b)+"}";
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: application/json");

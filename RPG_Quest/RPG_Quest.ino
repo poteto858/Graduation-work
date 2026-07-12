@@ -43,6 +43,16 @@ Adafruit_SSD1306 oled(128, 64, &Wire, -1);  // 接続用QR表示OLED（I2C SDA/S
 const int PIN_VRX = A0;
 const int PIN_VRY = A1;
 const int PIN_SW  = 2;
+
+// ジョイスティックの「中心」を起動時に自動でならす。
+// 未接続で端子が浮いていても、その浮いた値をそのまま"中心"として記録し直すので、
+// 以後もほぼ同じ値が続く限りズレ0(中立)のまま扱われる＝配線の有無を問わず誤動作しない。
+int baseX = 512, baseY = 512;
+void calibrateJoystick(){
+  long sx=0, sy=0; const int N=8;
+  for(int i=0;i<N;i++){ sx+=analogRead(PIN_VRX); sy+=analogRead(PIN_VRY); delay(2); }
+  baseX = sx/N; baseY = sy/N;
+}
 // パッシブブザー: 信号->D9, もう片足->ポテンショメータ(中央)->外側->GND（直列で音量調整）
 const int PIN_BUZZ = 9;
 // WS2812 RGBテープ: DIN->D6, 5V->5V, GND->GND
@@ -132,6 +142,7 @@ void showQR(const char* text, const char* l1, const char* l2, const char* addr){
 void setup(){
   Serial.begin(9600);
   pinMode(PIN_SW, INPUT_PULLUP);
+  calibrateJoystick();
   pinMode(PIN_BUZZ, OUTPUT);
   strip.begin(); strip.show();   // 全消灯
   matrix.begin();                // 内蔵LEDマトリクス開始
@@ -225,7 +236,9 @@ void loop(){
     String path = (sp1>=0&&sp2>sp1) ? reqLine.substring(sp1+1, sp2) : "/";
 
     if(path.startsWith("/state")){
-      int vx=analogRead(PIN_VRX), vy=analogRead(PIN_VRY);
+      int rawX=analogRead(PIN_VRX), rawY=analogRead(PIN_VRY);
+      int vx=constrain(512+(rawX-baseX), 0, 1023);   // 起動時の中心からのズレに変換（未接続ならズレ0=中立）
+      int vy=constrain(512+(rawY-baseY), 0, 1023);
       int b=(digitalRead(PIN_SW)==LOW)?1:0;
       String json="{\"x\":"+String(vx)+",\"y\":"+String(vy)+",\"b\":"+String(b)+"}";
       client.println("HTTP/1.1 200 OK");

@@ -582,7 +582,8 @@ function foes(){ return battle.enemies.filter(e=>e.hp>0); }       // 生存中�
 function frontFoe(){ return foes()[0]; }                          // 単体対象は前列
 function randAlive(){ const a=aliveMembers(); return a.length?a[Math.floor(Math.random()*a.length)]:null; }
 function pickGroup(){                                              // 同種を grp 体まで（小さめに偏らせる）
-  const e=pickEnemy(); const maxg=e.grp||1;
+  const e=pickEnemy();
+  const maxg = (stats.lv>=3) ? (e.grp||1) : 1;   // 勇者Lv3未満は単体のみ（序盤で群れに囲まれて即死するのを防ぐ）
   let n=1; for(let i=1;i<maxg && i<3;i++){ if(Math.random()<0.55) n++; }
   const arr=[]; for(let i=0;i<n;i++) arr.push(e); return arr;
 }
@@ -1266,7 +1267,11 @@ function update(){
   if(encCooldown>0) encCooldown--;
   if(mode==="field"){
     player.walk=0;
-    const sp=5; let dx=0,dy=0, arrived=false;   // 移動速度（スマホで縮小表示されても遅すぎないよう）
+    // 移動速度：表示が縮小される分だけ論理座標での移動量を増やし、見た目の速さを端末サイズによらず揃える
+    // （3はPCの等倍表示を基準にした値。スマホでCSSにより縮小表示されても体感速度が変わらないようにする）
+    const _rect=canvas.getBoundingClientRect();
+    const _scale=_rect.width>0 ? Math.min(3, Math.max(1, VIEW/_rect.width)) : 1;
+    const sp=3*_scale; let dx=0,dy=0, arrived=false;
     if(keys["w"])dy-=sp; if(keys["s"])dy+=sp;
     if(keys["a"])dx-=sp; if(keys["d"])dx+=sp;
     const j=joyState;                          // ジョイスティック

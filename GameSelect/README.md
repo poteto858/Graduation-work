@@ -23,7 +23,7 @@ Arduino が「どのURLが来たか」で配信を変えます（2つの大き�
 | `/rpg` | RPG（`webpage_gz.h` … **RPG_Quest由来**） |
 | `/state` `/fx` `/led` `/maps.json` | 共通（迷路は `/state` のみ使用） |
 
-各ゲームは選択画面から開く独立した画面として動作し、迷路には「← ゲーム選択」ボタンで戻れます。
+各ゲームは選択画面から開く独立した画面として動作します。迷路側の「← ゲーム選択」ボタンで選択画面へ戻れます（RPGはブラウザの戻る／再アクセスで戻ります）。
 
 ## 開発の流れ（重要）
 - **各ゲームの中身は `MazeGame/` と `RPG_Quest/` で開発**します。GameSelect は“集めて配信するだけ”。
@@ -34,18 +34,19 @@ Arduino が「どのURLが来たか」で配信を変えます（2つの大き�
 - そのあと GameSelect を書き込み直します（取り込みを忘れると古い版が焼かれます）。
 
 ## 操作・配線
-RPG_Quest と同じ（ジョイスティック VRx→A0 / VRy→A1 / SW→D2、パッシブブザー→D9、WS2812→D6）に加え、**QR表示用OLED**を I2C で追加。
+RPG_Quest と同じ（ジョイスティック VRx→A0 / VRy→A1 / SW→D2、パッシブブザー→D9、WS2812→D6、**QR表示用OLED**）。
 
 - **OLED（SSD1306 128×64）**：接続用QRを表示（外で遊ぶ用）。`SDA→SDA / SCL→SCL`（I2C・アドレス0x3C）、`VCC→3.3V`、`GND→GND`。要ライブラリ：**Adafruit SSD1306 / Adafruit GFX / QRCode**。
-  - AP時：Wi-Fi参加QR（`GameSelect`）を表示／STA時：`http://<IP>/` のQRを表示。
+  - AP時：Wi-Fi参加QR（`GameSelect`）を表示／STA時：`http://<IP>/?go` のQRを表示（キャッシュ回避付き）。
 - **キャプティブポータル**：APにつなぐと**自動でゲーム選択画面が開くことが多い**（簡易DNSで全ドメインを 192.168.4.1 に誘導）。端末依存で開かない場合は `192.168.4.1/?go` を開けば確実。
 
 > ハードが無くてもキーボード（WASD/矢印）・スマホ（**仮想十字パッド**／タップ）で全機能が動作します。
 
 ## ビルド
-1. （任意）家のWi-Fiで使う場合のみ `arduino_secrets.h` をこのフォルダに置く（2.4GHz帯）。**無くてもビルドできます**＝初期状態のデモモード（`#define PORTABLE_DEMO 1`）はAP起動なのでWi-Fi情報が不要。
-2. `GameSelect.ino` ＋ `launcher.h` / `maze_gz.h` / `webpage_gz.h` / `maps.h` を同じフォルダに置いて書き込み。
-3. シリアルモニタ（9600bps）の IP に `http://<IP>/` でアクセス → 選択画面。
+1. （任意）家のWi-Fiで使う場合のみ `arduino_secrets.h` をこのフォルダに置き（2.4GHz帯）、あわせて `GameSelect.ino` の `#define PORTABLE_DEMO 1` を **`0`** に変更。**無くてもビルドできます**＝初期状態のデモモード（`PORTABLE_DEMO 1`）はAP起動なのでWi-Fi情報が不要。
+2. ライブラリ **Adafruit NeoPixel** / **Adafruit SSD1306**（依存の Adafruit GFX も）/ **QRCode**（Richard Moore 作）を導入（実機ハード未接続でもコンパイルに必要）。
+3. `GameSelect.ino` ＋ `launcher.h` / `maze_gz.h` / `webpage_gz.h` / `maps.h` を同じフォルダに置いて書き込み。
+4. シリアルモニタ（9600bps）の IP に `http://<IP>/` でアクセス → 選択画面。
 
 > **外で遊ぶ（モバイルバッテリー＋アクセスポイント）と接続用QR** はリポジトリ直下の README を参照。
 > このスケッチのAP名は `GameSelect`（**パスワード不要のオープンAP**＝R4でも確実に接続でき、キャプティブで自動的にゲームが開く）。

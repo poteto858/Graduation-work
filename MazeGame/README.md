@@ -41,9 +41,10 @@ Arduino UNO R4 WiFi を **Webサーバー**にして、PC・スマホのブラ�
 > ブザー・LEDは使いません（効果音はブラウザの Web Audio で再生）。OLEDは外プレイの接続用QRを表示します。
 
 ## ビルド
-1. リポジトリ直下の `arduino_secrets.h.example` を `arduino_secrets.h` にコピーし、このフォルダに置いてWi-Fi（2.4GHz帯）情報を記入。
-2. `MazeGame.ino` ＋ `maze_gz.h` ＋ `arduino_secrets.h` を同じフォルダに置いて Arduino IDE で書き込み。
-3. シリアルモニタ（9600bps）に表示される IP に `http://<IP>/`（httpsではなくhttp）でアクセス。
+1. （任意）家のWi-Fiで使う場合のみ、リポジトリ直下の `arduino_secrets.h.example` を `arduino_secrets.h` にコピーし、このフォルダに置いてWi-Fi（2.4GHz帯）情報を記入（**無くてもビルド可**＝起動時にルーターが見つからなければ自動でAP「MazeGame」）。
+2. ライブラリ **Adafruit SSD1306**（依存の Adafruit GFX も一緒に入ります）と **QRCode**（Richard Moore 作）を導入（OLED未接続でもコンパイルに必要）。
+3. `MazeGame.ino` ＋ `maze_gz.h` を同じフォルダに置いて Arduino IDE で書き込み。
+4. シリアルモニタ（9600bps）に表示される IP に `http://<IP>/`（httpsではなくhttp）でアクセス。
 
 > ゲーム本体は `maze.html`。編集したら `_gzip_maze.py`（開発用ローカルスクリプト・リポジトリ未同梱）で `maze_gz.h` を作り直してください（Arduino は gzip 圧縮のまま配信＝省メモリ）。
 > 家のWi-Fiが見つからない場合は自動でAP「MazeGame」が起動します（`arduino_secrets.h` 無しでもビルド可）。外で遊ぶ方法はリポジトリ直下の README を参照。

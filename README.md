@@ -29,7 +29,7 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 ## ▶ すぐ遊ぶ（ダウンロード → 書き込むだけ）
 
 `GameSelect/` を書き込めば、**迷路もRPGも1台で**遊べます。
-**WiFi設定すら不要**です（初期状態でArduino自身がWiFi「GameSelect」を立てる *デモモード* で起動します）。
+**Wi-Fi設定すら不要**です（初期状態でArduino自身がWi-Fi「GameSelect」を立てる *デモモード* で起動します）。
 
 ### 用意するもの
 - **Arduino UNO R4 WiFi** 本体 ＋ **USB-Cケーブル**
@@ -48,15 +48,19 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 1. このページ右上の緑「**Code ▾ → Download ZIP**」で落として解凍（または `git clone`）
 2. `GameSelect/GameSelect.ino` を Arduino IDE で開く
 3. **ツール → ボード**＝「Arduino UNO R4 WiFi」、**ポート**を選ぶ
-4. **→（書き込み）** ボタンを押す … *WiFi情報の入力は不要です*
+4. **→（書き込み）** ボタンを押す … *Wi-Fi情報の入力は不要です*
 
 ### 3. 遊ぶ
-1. スマホの**WiFi設定で「GameSelect」**（パスワード無し）に接続
+1. スマホの**Wi-Fi設定で「GameSelect」**（パスワード無し）に接続
 2. 画面が自動で開かないときは、ブラウザで **`http://192.168.4.1`** を開く
 3. **ゲーム選択画面**が出る → 迷路 / RPG を選んでプレイ
-   - 操作：PCは **WASD / 矢印キー**、スマホは**画面下の仮想十字パッド（十字＋A/B）**やタップ（迷路・RPG共通）
+   - 操作：PCは **WASD / 矢印キー**、スマホは**画面下の仮想十字パッド**（十字＋A/B）やタップ（迷路・RPG共通）
 
-> **家のWiFi／実機ジョイスティックを使う場合**：初期状態の *デモモード*（`GameSelect.ino` の `#define PORTABLE_DEMO 1`）は「電源を入れたらすぐ遊べる」ために、**家のWiFi(STA)には繋がず、ジョイスティック端子も読みません**（未接続でも誤動作しないよう入力は中立値を返します）。家のWiFiやジョイスティックを使うときは、`arduino_secrets.h.example` を同じフォルダに `arduino_secrets.h` という名前でコピーして自分の **2.4GHz** WiFi情報を記入し、`PORTABLE_DEMO` を **`0`** に変えてから書き込みます。起動後、OLEDかシリアルモニタ(9600bps)に出る `192.168.x.x` をブラウザで開きます。
+> **家のWi-Fi／実機ジョイスティックを使う場合**：初期状態の *デモモード*（`GameSelect.ino` の `#define PORTABLE_DEMO 1`）は「電源を入れたらすぐ遊べる」ために、**家のWi-Fi(STA)には繋がず、ジョイスティック端子も読みません**（未接続でも誤動作しないよう入力は中立値を返します）。切り替える手順：
+> 1. `arduino_secrets.h.example` を同じフォルダに `arduino_secrets.h` という名前でコピー
+> 2. 自分の **2.4GHz** Wi-FiのSSID・パスワードを記入
+> 3. `GameSelect.ino` の `PORTABLE_DEMO` を **`0`** に変更して書き込み
+> 4. 起動後、OLEDかシリアルモニタ(9600bps)に出る `192.168.x.x` をブラウザで開く
 
 ---
 
@@ -71,7 +75,7 @@ flowchart LR
 ```
 
 - **ゲームのロジック・描画はすべてブラウザ側の JavaScript**。
-- **Arduino は「Webサーバー」**として、HTMLを配り、ジョイスティックの値を返し、効果音やLEDを鳴らす。
+- Arduino は「**Webサーバー**」として、HTMLを配り、ジョイスティックの値を返し、効果音やLEDを鳴らす。
 - だから重い描画はPC/スマホ側で動き、Arduinoの非力なCPUを使わずに済む。
 - HTMLは **gzip圧縮のまま配信**（ブラウザが自動展開＝マイコンは展開しない）してフラッシュを節約。
 
@@ -94,7 +98,7 @@ flowchart LR
 | WS2812 RGBテープ | イベントに応じて発光 | DIN→D6 | RPG_Quest / GameSelect |
 | OLED（SSD1306 128×64） | 接続用QRを表示（外で遊ぶ用） | SDA→SDA / SCL→SCL（I2C・0x3C）, VCC→3.3V, GND→GND | 全作品 |
 
-> 迷路ゲームはジョイスティックのみ（効果音はブラウザのWeb Audioで再生）。
+> 迷路ゲームはブザー・RGBテープを使いません（効果音はブラウザのWeb Audioで再生。OLEDは接続用QR表示に使用）。
 > OLEDは要ライブラリ（Adafruit SSD1306 / Adafruit GFX / QRCode）。
 > ハードが無くても、キーボード（WASD/矢印）・スマホタップで全機能が動作します。
 
@@ -129,7 +133,7 @@ flowchart LR
 
 ## 外で遊ぶ（持ち出しプレイ）
 
-家のWi-Fiが無い屋外でも、**`GameSelect` を書き込めばQR1枚でゲーム選択画面まで開けます**（Arduino自身がWi-Fiアクセスポイントになる）。
+家のWi-Fiが無い屋外でも、**`GameSelect` を書き込めばQRを読むだけでゲーム選択画面まで開けます**（Arduino自身がWi-Fiアクセスポイントになる）。
 
 ### 手順（外）
 1. **`GameSelect/GameSelect.ino` を書き込む**。電源はUSBモバイルバッテリーをUSB-Cに挿すだけ。
@@ -142,7 +146,7 @@ flowchart LR
   <img src="GameSelect/qr_outdoor.png" width="520" alt="外プレイ用QR：①Wi-Fi接続 ②選択画面を開く">
 </p>
 
-> - **自動で開くこともあります**（キャプティブポータル）：iPhoneは接続直後に自動表示、Androidは「ログイン／サインイン」通知をタップ。ただし**端末・タイミング依存で不安定**なので、**確実なのは④（②QR か `192.168.4.1/?go`）**です。
+> - **自動で開くこともあります**（キャプティブポータル）：iPhoneは接続直後に自動表示、Androidは「ログイン／サインイン」通知をタップ。ただし**端末・タイミング依存で不安定**なので、**確実なのは手順4**（②のQR か `192.168.4.1/?go`）です。
 > - iPhoneの「インターネット未接続」警告は **「このまま接続」** を選ぶ。
 > - **近くに家のWi-Fiがあるとスマホがそちらへ戻る**ので、必ず**屋外**で。
 > - OLEDに **`Wi-Fi: GameSelect`** と出ていればGameSelectが動いています（`RPG_Quest` 等なら別スケッチを焼いています）。

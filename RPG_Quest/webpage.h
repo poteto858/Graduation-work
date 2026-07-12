@@ -1261,17 +1261,17 @@ function updateMinimap(){
 function update(){
   if(mode==="intro"){
     intro.t++;
-    if(intro.t%2===0 && intro.shown<introLen()) intro.shown++;   // あらすじを1文字ずつ表示
+    if(intro.t%5===0 && intro.shown<introLen()) intro.shown++;   // あらすじを1文字ずつ表示（じっくり読める速さ）
     return;                                                       // 本編はポーズ
   }
   if(encCooldown>0) encCooldown--;
   if(mode==="field"){
     player.walk=0;
     // 移動速度：表示が縮小される分だけ論理座標での移動量を増やし、見た目の速さを端末サイズによらず揃える
-    // （3はPCの等倍表示を基準にした値。スマホでCSSにより縮小表示されても体感速度が変わらないようにする）
+    // （2.4はPCの等倍表示を基準にした値。スマホでCSSにより縮小表示されても体感速度が変わらないようにする）
     const _rect=canvas.getBoundingClientRect();
     const _scale=_rect.width>0 ? Math.min(3, Math.max(1, VIEW/_rect.width)) : 1;
-    const sp=3*_scale; let dx=0,dy=0, arrived=false;
+    const sp=2.4*_scale; let dx=0,dy=0, arrived=false;
     if(keys["w"])dy-=sp; if(keys["s"])dy+=sp;
     if(keys["a"])dx-=sp; if(keys["d"])dx+=sp;
     const j=joyState;                          // ジョイスティック

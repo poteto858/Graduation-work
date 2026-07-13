@@ -17,13 +17,17 @@ Arduino 1台で **迷路ゲーム（MazeGame）** と **RPG_Quest** の2作を�
 
 ゲーム選択 → 迷路プレイ → RPGフィールド探索・バトル、の一連の流れです。
 
-<p>
-  <video src="報告動画/game_select.mp4" controls width="420"></video>
-  <video src="報告動画/maze_play.mp4" controls width="420"></video>
-</p>
-<p>
-  <video src="報告動画/rpg_battle.mp4" controls width="420"></video>
-</p>
+#### ① ゲーム選択
+
+https://github.com/user-attachments/assets/f1a50624-f9f0-4f63-a5b9-811000a9c9f4
+
+#### ② 迷路プレイ
+
+https://github.com/user-attachments/assets/8dd8d202-f109-4340-bb27-46e730ab1825
+
+#### ③ RPG フィールド探索・バトル
+
+https://github.com/user-attachments/assets/cd854839-ded3-4380-9915-2d6cd00a5f8b
 
 ## しくみ（URLパスで出し分け）
 Arduino が「どのURLが来たか」で配信を変えます（2つの大きな JS を混ぜないので名前衝突がない）。

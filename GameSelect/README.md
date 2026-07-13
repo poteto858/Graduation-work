@@ -13,6 +13,18 @@ Arduino 1台で **迷路ゲーム（MazeGame）** と **RPG_Quest** の2作を�
   <img src="../RPG_Quest/報告画像/fig3_battle.png" width="45%" alt="RPG_Quest">
 </p>
 
+## プレイ動画
+
+ゲーム選択 → 迷路プレイ → RPGフィールド探索・バトル、の一連の流れです。
+
+<p>
+  <video src="報告動画/game_select.mp4" controls width="420"></video>
+  <video src="報告動画/maze_play.mp4" controls width="420"></video>
+</p>
+<p>
+  <video src="報告動画/rpg_battle.mp4" controls width="420"></video>
+</p>
+
 ## しくみ（URLパスで出し分け）
 Arduino が「どのURLが来たか」で配信を変えます（2つの大きな JS を混ぜないので名前衝突がない）。
 
@@ -23,7 +35,7 @@ Arduino が「どのURLが来たか」で配信を変えます（2つの大き�
 | `/rpg` | RPG（`webpage_gz.h` … **RPG_Quest由来**） |
 | `/state` `/fx` `/led` `/maps.json` | 共通（迷路は `/state` のみ使用） |
 
-各ゲームは選択画面から開く独立した画面として動作します。迷路側の「← ゲーム選択」ボタンで選択画面へ戻れます（RPGはブラウザの戻る／再アクセスで戻ります）。
+各ゲームは選択画面から開く独立した画面として動作します。どちらの画面にも「← ゲーム選択」ボタンがあり、選択画面へ戻れます（迷路は操作パネル内、RPGは画面左上に常時表示）。
 
 ## 開発の流れ（重要）
 - **各ゲームの中身は `MazeGame/` と `RPG_Quest/` で開発**します。GameSelect は“集めて配信するだけ”。

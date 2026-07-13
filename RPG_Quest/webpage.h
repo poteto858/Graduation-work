@@ -18,6 +18,11 @@ h2{letter-spacing:6px;margin:4px 0 12px;font-weight:700;color:#ffe9a8;text-shado
 canvas{display:block;border-radius:4px;background:#2a3a2a;touch-action:none;max-width:94vw;
        box-shadow:inset 0 0 0 2px #0a0a12;}
 #hint{color:#6f6890;font-size:13px;margin-top:12px;}
+#btnBack{position:fixed;left:10px;top:10px;z-index:50;background:rgba(10,10,20,.6);
+     border:1px solid #6e5018;color:#caa24a;border-radius:8px;
+     padding:6px 16px;font-size:13px;font-family:inherit;cursor:pointer;}
+#btnBack:hover{border-color:#ffd23f;color:#ffd23f;}
+#btnBack:active{transform:translateY(1px);}
 #loading{position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;
   align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#243a5e,#0c1424 75%);}
 #loading .t{color:#ffe9a8;font-size:30px;letter-spacing:8px;font-weight:700;text-shadow:0 0 12px #b58a2a;}
@@ -69,6 +74,7 @@ canvas{display:block;border-radius:4px;background:#2a3a2a;touch-action:none;max-
   </div>
 </div>
 <div id="hint">十字キーで移動／A＝決定・話す／B＝メニュー　｜　PCは WASD・矢印・Space　｜　マップのタップ移動も可</div>
+<button id="btnBack">← ゲーム選択</button>
 
 <script>
 /*IMG_EMBED_START*/
@@ -1161,6 +1167,7 @@ function virtualB(){
   });
   document.getElementById('btnA').addEventListener('pointerdown',e=>{ e.preventDefault(); initAudio(); joyButton(); });
   document.getElementById('btnB').addEventListener('pointerdown',e=>{ e.preventDefault(); initAudio(); virtualB(); });
+  document.getElementById('btnBack').addEventListener('click',()=>{ location.href='/'; });
 })();
 
 function canvasPos(e){

@@ -401,6 +401,7 @@ function loadMap(name, sx, sy){
   nudgeToFloor();   // 壁の中に置かれたら近くの床へ（壊れた復活地点の保険）
   clearMoveInput(); // 遷移時に押下キー/タップ移動目標を解除（旧座標への自動歩行・出口バウンス防止）
   mode="field";
+  playBgm(mapBgmFor(name));   // マップごとのBGMに切り替え
 }
 
 // 建物の足元当たり判定（ドア以外は壁）。ドア=(x+1, y+1)
@@ -595,7 +596,9 @@ function startBattle(forced, onWin){
   battle={ enemies, state:"msg", msg:[], msgIdx:0, shown:0,
            after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null, onWin:onWin||null, noFlee:!!onWin,
            order:[], actorIdx:0, actor:null, _foeQ:[] };
-  mode="battle"; fx("enc"); startBattleBgm();
+  mode="battle"; fx("enc");
+  // 戦闘BGMは相手の強さで切り替える：魔王＝専用曲、固有行動を持つ強敵/中ボス＝強敵曲、それ以外＝通常曲
+  playBgm(forced===MAOH ? "battleBoss" : (forced===GEHENA || list.some(e=>e.moves)) ? "battleTough" : "battle");
   const head = multi ? (list[0].name+" の 群れ") : list[0].name;
   queueMsg([head+"が あらわれた！"], startRound);
 }
@@ -794,14 +797,14 @@ function winBattle(){
   queueMsg(lines, ()=>{ endBattle(); saveGame(); if(cb) cb(); });   // 勝利を保存（強制戦闘なら勝利後イベントへ）
 }
 function loseBattle(){
-  stopBattleBgm();
+  stopBgm();   // 全滅の場面は無音に。復帰後は loadMap がリスポーン先のBGMに切り替える
   queueMsg(["パーティは 全滅した…","教会で 目を覚ました…"], ()=>{
     for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; }
     battle=null; encCooldown=120;
     loadMap(respawn.map, respawn.tx, respawn.ty);   // 教会(リスポーン地点)で復活
   });
 }
-function endBattle(){ mode="field"; battle=null; encCooldown=100; clearMoveInput(); stopBattleBgm(); }
+function endBattle(){ mode="field"; battle=null; encCooldown=100; clearMoveInput(); playBgm(mapBgmFor(currentMap)); }
 
 // ====== イベント：洞窟で魔法使いを救出して仲間にする ======
 function eventRescueMage(){
@@ -1218,12 +1221,31 @@ function beep(f0,f1,dur,type,vol){
   osc.connect(g); g.connect(audioCtx.destination);
   osc.start(t); osc.stop(t+dur);
 }
-// 短い反復フレーズ(オスティナート)を戦闘中ずっとループする、簡易チップチューン風BGM
-const BGM_NOTES=[110,110,130.81,110,146.83,110,164.81,146.83];
-let bgmTimer=null, bgmStep=0;
-function battleBgmStep(){ beep(BGM_NOTES[bgmStep%BGM_NOTES.length], null, 0.18, "sawtooth", 0.05); bgmStep++; }
-function startBattleBgm(){ if(!audioCtx) return; stopBattleBgm(); bgmStep=0; battleBgmStep(); bgmTimer=setInterval(battleBgmStep, 220); }
-function stopBattleBgm(){ if(bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } }
+// 短い反復フレーズ(オスティナート)をループする、簡易チップチューン風BGM。場面ごとに曲を切り替える。
+const BGM_TRACKS={
+  battle:     { notes:[110,110,130.81,110,146.83,110,164.81,146.83],                          step:220, wave:"sawtooth", vol:0.05 },  // 通常戦闘
+  battleTough:{ notes:[98,98,116.54,98,130.81,116.54,146.83,130.81,98,116.54],                 step:170, wave:"sawtooth", vol:0.06 },  // 強敵(固有行動を持つ敵・中ボス)
+  battleBoss: { notes:[82.41,82.41,97.99,82.41,110,97.99,123.47,110,130.81,110,97.99,82.41],   step:150, wave:"sawtooth", vol:0.07 },  // 魔王戦
+  field:      { notes:[220,246.94,261.63,246.94,220,196,220,246.94],                           step:420, wave:"triangle", vol:0.045 }, // フィールド／洞窟・道など未指定エリア共通
+  town:       { notes:[261.63,329.63,392,329.63,293.66,349.23,392,440],                        step:380, wave:"triangle", vol:0.045 }, // はじまりの町
+  town2:      { notes:[329.63,392,440,392,349.23,392,440,493.88],                              step:360, wave:"triangle", vol:0.045 }, // 奥の町
+  castle:     { notes:[73.42,73.42,87.31,73.42,82.41,73.42,69.30,73.42],                       step:480, wave:"sawtooth", vol:0.05 },  // 魔王城
+};
+let bgmTimer=null, bgmStep=0, bgmCurrent=null;
+function bgmTick(){
+  const t=BGM_TRACKS[bgmCurrent]; if(!t) return;
+  beep(t.notes[bgmStep%t.notes.length], null, (t.step/1000)*0.9, t.wave, t.vol);
+  bgmStep++;
+}
+function playBgm(name){
+  if(bgmCurrent===name) return;         // 同じ曲は鳴らし直さない（切替のたびに途切れないように）
+  stopBgm(); bgmCurrent=name;
+  if(!audioCtx || !BGM_TRACKS[name]) return;
+  bgmStep=0; bgmTick();
+  bgmTimer=setInterval(bgmTick, BGM_TRACKS[name].step);
+}
+function stopBgm(){ if(bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } bgmCurrent=null; }
+function mapBgmFor(name){ return name==="town" ? "town" : name==="town2" ? "town2" : name==="castle" ? "castle" : "field"; }
 
 // ====== ジョイスティック（/state をポーリング） ======
 let joyState={x:512,y:512,b:0}, joyNav=true, joyBtn=true, joyBusy=false;

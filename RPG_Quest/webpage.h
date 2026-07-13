@@ -1887,7 +1887,7 @@ function drawBattle(){
   if(b.state==="command"||b.state==="spell"||b.state==="skill"){
     // 誰のターンか
     ctx.fillStyle="#ffd23f"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
-    ctx.fillText(b.actor.name+"の ばん", 50, my+40);
+    ctx.fillText(b.actor.name+"の 番", 50, my+40);
   }
   if(b.state==="command") drawMenu(BATTLE_CMDS);
   else if(b.state==="spell"){

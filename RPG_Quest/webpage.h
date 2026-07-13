@@ -595,8 +595,8 @@ function startBattle(forced, onWin){
   battle={ enemies, state:"msg", msg:[], msgIdx:0, shown:0,
            after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null, onWin:onWin||null, noFlee:!!onWin,
            order:[], actorIdx:0, actor:null, _foeQ:[] };
-  mode="battle"; fx("enc");
-  const head = multi ? (list[0].name+" の むれ") : list[0].name;
+  mode="battle"; fx("enc"); startBattleBgm();
+  const head = multi ? (list[0].name+" の 群れ") : list[0].name;
   queueMsg([head+"が あらわれた！"], startRound);
 }
 function queueMsg(lines, after){
@@ -794,13 +794,14 @@ function winBattle(){
   queueMsg(lines, ()=>{ endBattle(); saveGame(); if(cb) cb(); });   // 勝利を保存（強制戦闘なら勝利後イベントへ）
 }
 function loseBattle(){
+  stopBattleBgm();
   queueMsg(["パーティは 全滅した…","教会で 目を覚ました…"], ()=>{
     for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; }
     battle=null; encCooldown=120;
     loadMap(respawn.map, respawn.tx, respawn.ty);   // 教会(リスポーン地点)で復活
   });
 }
-function endBattle(){ mode="field"; battle=null; encCooldown=100; clearMoveInput(); }
+function endBattle(){ mode="field"; battle=null; encCooldown=100; clearMoveInput(); stopBattleBgm(); }
 
 // ====== イベント：洞窟で魔法使いを救出して仲間にする ======
 function eventRescueMage(){
@@ -1064,6 +1065,7 @@ function updateBattle(){
 
 // ====== 入力 ======
 document.addEventListener("keydown",(e)=>{
+  initAudio();   // ブラウザの自動再生制限の解除（最初の入力で1回）
   const k=e.key.toLowerCase();
   keys[k]=true;
   if(e.key==="ArrowUp")keys["w"]=true; if(e.key==="ArrowDown")keys["s"]=true;
@@ -1140,8 +1142,8 @@ function virtualB(){
     b.addEventListener('pointerleave',up);
     b.addEventListener('contextmenu',e=>e.preventDefault());
   });
-  document.getElementById('btnA').addEventListener('pointerdown',e=>{ e.preventDefault(); joyButton(); });
-  document.getElementById('btnB').addEventListener('pointerdown',e=>{ e.preventDefault(); virtualB(); });
+  document.getElementById('btnA').addEventListener('pointerdown',e=>{ e.preventDefault(); initAudio(); joyButton(); });
+  document.getElementById('btnB').addEventListener('pointerdown',e=>{ e.preventDefault(); initAudio(); virtualB(); });
 })();
 
 function canvasPos(e){
@@ -1150,6 +1152,7 @@ function canvasPos(e){
 }
 let tapDir=null, moveTarget=null, talkTarget=null;
 canvas.addEventListener("pointerdown",(e)=>{
+  initAudio();   // ブラウザの自動再生制限の解除（最初の入力で1回）
   if(mode==="intro"){ advanceIntro(); return; }
   if(mode==="talk"){ advanceDialog(); return; }
   if(mode==="battle"){
@@ -1186,14 +1189,41 @@ canvas.addEventListener("pointerup",()=>{ tapDir=null; });
 canvas.addEventListener("pointerleave",()=>{ tapDir=null; });
 
 // ====== ハードウェア効果音（Arduinoのブザー＋WS2812 LED） ======
-// 短時間に連続して鳴らすとArduino側が詰まるので最小間隔をあける（間引き）
-let lastFx=0;
+// 短時間に同じ演出を連続して鳴らすとArduino側が詰まるので最小間隔をあける（種類ごとに間引き）。
+// 種類ごとにすることで、例えば勝利(win)の直後にレベルアップ(level)が来ても、
+// 別の演出として両方きちんと鳴る（以前は1本の間引きで直後のlevelが消されていた）。
+let lastFxAt={};
 function fx(s){
   const now=Date.now();
-  if(now-lastFx < 120) return;   // 120ms以内の連続は無視
-  lastFx=now;
+  if(now-(lastFxAt[s]||0) < 120) return;   // 同じ種類が120ms以内に連続する場合だけ無視
+  lastFxAt[s]=now;
   try{ fetch("/fx?s="+s,{cache:"no-store"}); }catch(e){}
 }
+
+// ====== 戦闘BGM（ブラウザのWeb Audioで合成。ハードのブザーは効果音専用のまま） ======
+let audioCtx=null;
+function initAudio(){   // ブラウザの自動再生制限のため、最初のキー入力/タップで一度だけ呼ぶ
+  if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(audioCtx && audioCtx.state==="suspended") audioCtx.resume();
+}
+function beep(f0,f1,dur,type,vol){
+  if(!audioCtx) return;
+  const t=audioCtx.currentTime;
+  const osc=audioCtx.createOscillator(), g=audioCtx.createGain();
+  osc.type=type||"square";
+  osc.frequency.setValueAtTime(f0,t);
+  if(f1&&f1!==f0) osc.frequency.linearRampToValueAtTime(f1,t+dur);
+  g.gain.setValueAtTime(vol||0.1,t);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t+dur);
+}
+// 短い反復フレーズ(オスティナート)を戦闘中ずっとループする、簡易チップチューン風BGM
+const BGM_NOTES=[110,110,130.81,110,146.83,110,164.81,146.83];
+let bgmTimer=null, bgmStep=0;
+function battleBgmStep(){ beep(BGM_NOTES[bgmStep%BGM_NOTES.length], null, 0.18, "sawtooth", 0.05); bgmStep++; }
+function startBattleBgm(){ if(!audioCtx) return; stopBattleBgm(); bgmStep=0; battleBgmStep(); bgmTimer=setInterval(battleBgmStep, 220); }
+function stopBattleBgm(){ if(bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } }
 
 // ====== ジョイスティック（/state をポーリング） ======
 let joyState={x:512,y:512,b:0}, joyNav=true, joyBtn=true, joyBusy=false;

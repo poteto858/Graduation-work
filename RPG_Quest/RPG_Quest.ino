@@ -53,6 +53,17 @@ void calibrateJoystick(){
   for(int i=0;i<N;i++){ sx+=analogRead(PIN_VRX); sy+=analogRead(PIN_VRY); delay(2); }
   baseX = sx/N; baseY = sy/N;
 }
+// ボタン(SW)を1秒以上押して離すと再センタリング。起動後にジョイスティックを後付けした場合や、
+// 起動時にスティックが真ん中でなかった場合でも、電源を入れ直さず中心をやり直せる。
+bool swHeld=false; unsigned long swHeldSince=0;
+void pollRecenter(){
+  bool down=(digitalRead(PIN_SW)==LOW);
+  if(down){ if(!swHeld){ swHeld=true; swHeldSince=millis(); } }
+  else{
+    if(swHeld && millis()-swHeldSince>=1000){ delay(150); calibrateJoystick(); }  // 離した瞬間、スティックが戻るのを少し待って再計測
+    swHeld=false;
+  }
+}
 // パッシブブザー: 信号->D9, もう片足->ポテンショメータ(中央)->外側->GND（直列で音量調整）
 const int PIN_BUZZ = 9;
 // WS2812 RGBテープ: DIN->D6, 5V->5V, GND->GND
@@ -236,6 +247,7 @@ void loop(){
     String path = (sp1>=0&&sp2>sp1) ? reqLine.substring(sp1+1, sp2) : "/";
 
     if(path.startsWith("/state")){
+      pollRecenter();   // ボタン長押し離しで再センタリング（後付け・ズレ対策）
       int rawX=analogRead(PIN_VRX), rawY=analogRead(PIN_VRY);
       int vx=constrain(512+(rawX-baseX), 0, 1023);   // 起動時の中心からのズレに変換（未接続ならズレ0=中立）
       int vy=constrain(512+(rawY-baseY), 0, 1023);

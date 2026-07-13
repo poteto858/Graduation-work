@@ -49,6 +49,17 @@ void calibrateJoystick(){
   for(int i=0;i<N;i++){ sx+=analogRead(PIN_VRX); sy+=analogRead(PIN_VRY); delay(2); }
   baseX = sx/N; baseY = sy/N;
 }
+// ボタン(SW)を1秒以上押して離すと再センタリング。起動後にジョイスティックを後付けした場合や、
+// 起動時にスティックが真ん中でなかった場合でも、電源を入れ直さず中心をやり直せる。
+bool swHeld=false; unsigned long swHeldSince=0;
+void pollRecenter(){
+  bool down=(digitalRead(PIN_SW)==LOW);
+  if(down){ if(!swHeld){ swHeld=true; swHeldSince=millis(); } }
+  else{
+    if(swHeld && millis()-swHeldSince>=1000){ delay(150); calibrateJoystick(); }  // 離した瞬間、スティックが戻るのを少し待って再計測
+    swHeld=false;
+  }
+}
 
 // ===== OLEDにQRを表示（白地に黒モジュール＋余白）。右に説明2行＋アドレス（折り返し表示） =====
 // addr = 画面が自動で開かない時に手入力するアドレス。10文字ごとに折り返して下に表示する。
@@ -146,6 +157,7 @@ void loop(){
 
     if(path.startsWith("/state")){
       // ジョイスティック値を JSON で返す（ブラウザが約120msごとに取得）
+      pollRecenter();   // ボタン長押し離しで再センタリング（後付け・ズレ対策）
       int rawX=analogRead(PIN_VRX), rawY=analogRead(PIN_VRY);
       int vx=constrain(512+(rawX-baseX), 0, 1023);   // 起動時の中心からのズレに変換（未接続ならズレ0=中立）
       int vy=constrain(512+(rawY-baseY), 0, 1023);

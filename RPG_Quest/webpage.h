@@ -595,7 +595,7 @@ function startBattle(forced, onWin){
                      name: multi ? e.name+" "+String.fromCharCode(65+i) : e.name }));   // 複数は A/B/C
   battle={ enemies, state:"msg", msg:[], msgIdx:0, shown:0,
            after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null, onWin:onWin||null, noFlee:!!onWin,
-           order:[], actorIdx:0, actor:null, _foeQ:[] };
+           turnQueue:[], turnIdx:0, actor:null };
   mode="battle"; fx("enc");
   // 戦闘BGMは相手の強さで切り替える：魔王＝専用曲、固有行動を持つ強敵/中ボス＝強敵曲、それ以外＝通常曲
   playBgm(forced===MAOH ? "battleBoss" : (forced===GEHENA || list.some(e=>e.moves)) ? "battleTough" : "battle");
@@ -613,21 +613,40 @@ function advanceBattleMsg(){
   if(b.msgIdx>=b.msg.length){ const cb=b.after; b.after=null; if(cb)cb(); }
   else b.shown=0;
 }
-// 1ラウンド：生存メンバー全員のコマンドを順に選ぶ → 敵のターン
+// 1ラウンドの行動順：味方と敵を人数比に応じて公平に織り交ぜる。
+// （例：味方4人・敵1体なら 味方→敵→味方→味方→味方。以前は「味方全員→敵全員」の固定順で、
+//   　仲間が増えるほど敵が行動する前に袋叩きにできてしまい、簡単になりすぎていた）
+function buildTurnQueue(){
+  const allies=aliveMembers(), enemiesNow=foes();
+  const q=[]; let ai=0, ei=0;
+  const total=allies.length+enemiesNow.length;
+  for(let i=0;i<total;i++){
+    const aDone=ai>=allies.length, eDone=ei>=enemiesNow.length;
+    if(!aDone && (eDone || (ai/allies.length) <= (ei/Math.max(1,enemiesNow.length)))) q.push({side:"p", ref:allies[ai++]});
+    else q.push({side:"e", ref:enemiesNow[ei++]});
+  }
+  return q;
+}
 function startRound(){
   for(const m of party){ if(m.buffAtkT>0)m.buffAtkT--; if(m.buffDefT>0)m.buffDefT--; }
-  battle.order=aliveMembers(); battle.actorIdx=0; nextActorCmd();
+  battle.turnQueue=buildTurnQueue(); battle.turnIdx=0; nextTurn();
 }
-function nextActorCmd(){
+function nextTurn(){
   if(foes().length===0){ winBattle(); return; }
-  if(battle.actorIdx>=battle.order.length){ enemyTurn(); return; }
-  battle.actor=battle.order[battle.actorIdx];
-  if(battle.actor.down){ battle.actorIdx++; nextActorCmd(); return; }
-  enterCommand();
+  if(aliveMembers().length===0){ loseBattle(); return; }
+  if(battle.turnIdx>=battle.turnQueue.length){ startRound(); return; }   // 全員行動済み → 次のラウンドへ
+  const cur=battle.turnQueue[battle.turnIdx];
+  if(cur.side==="p"){
+    if(cur.ref.down){ battle.turnIdx++; nextTurn(); return; }
+    battle.actor=cur.ref; enterCommand();
+  }else{
+    if(cur.ref.hp<=0){ battle.turnIdx++; nextTurn(); return; }
+    doFoeAction(cur.ref);
+  }
 }
 function enterCommand(){ battle.state="command"; battle.cmd=0; }
-function advanceActor(){ battle.actorIdx++; nextActorCmd(); }
-function afterActorAction(){ if(foes().length===0){ winBattle(); return; } advanceActor(); }
+function advanceTurn(){ battle.turnIdx++; nextTurn(); }
+function afterActorAction(){ advanceTurn(); }   // 勝敗判定はnextTurnの先頭で毎回行う
 function confirmCommand(){
   const b=battle, m=b.actor;
   if(b.cmd===0) actorAttack();
@@ -724,43 +743,38 @@ function tryFlee(){
   if(Math.random()<0.6) queueMsg(["パーティは 逃げ出した！"], endBattle);
   else queueMsg([battle.actor.name+"は 逃げられなかった！"], afterActorAction);   // 失敗はそのメンバーのターン消費のみ（他は行動できる）
 }
-function enemyTurn(){ battle._foeQ = foes().slice(); doNextFoe(); }
-function doNextFoe(){
-  if(aliveMembers().length===0){ loseBattle(); return; }
-  const e = battle._foeQ.shift();
-  if(!e){ startRound(); return; }            // 全敵が行動済み → 味方ターンへ
-  if(e.hp<=0){ doNextFoe(); return; }
+function doFoeAction(e){   // ターン順が回ってきた、この1体だけの行動
   if(e.fleeChance && Math.random()<e.fleeChance){   // レアモンスターの逃走
     e.hp=0; e.fled=true;
     if(foes().length===0) queueMsg([e.name+"は 逃げ去った…"], endBattle);   // 単体で逃走→終了(報酬なし)
-    else queueMsg([e.name+"は 逃げ去った！"], doNextFoe);
+    else queueMsg([e.name+"は 逃げ去った！"], advanceTurn);
     return;
   }
   const mv = (e.moves && e.moves.length && Math.random()<(e.moveChance||0.4)) ? e.moves[Math.floor(Math.random()*e.moves.length)] : null;
   if(mv) enemyMove(e, mv); else enemyBasic(e);
 }
 function enemyBasic(e){
-  const t=randAlive(); if(!t){ doNextFoe(); return; }
+  const t=randAlive(); if(!t){ advanceTurn(); return; }
   const d=calcDmg(e.atk, defOf(t)); t.hp-=d; battle.shakeP=12; fx("hit");
   const lines=[e.name+"の 攻撃！", t.name+"は "+d+"の ダメージ！"];
   if(t.hp<=0){ t.hp=0; t.down=true; lines.push(t.name+"は 倒れた！"); }
-  queueMsg(lines, doNextFoe);
+  queueMsg(lines, advanceTurn);
 }
 function enemyMove(e, mv){
   if(mv.kind==="all"){                       // 全体攻撃
     battle.shakeP=12; fx("hit"); const lines=[e.name+"の "+mv.name+"！"];
     for(const t of aliveMembers()){ const d=Math.max(1, Math.floor(calcDmg(e.atk, defOf(t))*(mv.mult||0.7))); t.hp-=d;
       let s=t.name+"は "+d+"！"; if(t.hp<=0){ t.hp=0; t.down=true; s+=" 倒れた！"; } lines.push(s); }
-    queueMsg(lines, doNextFoe);
+    queueMsg(lines, advanceTurn);
   }else if(mv.kind==="healSelf"){            // 自己回復
     e.hp=Math.min(e.maxhp, e.hp+(mv.power||20)); fx("heal");
-    queueMsg([e.name+"の "+mv.name+"！", e.name+"は 傷を 癒やした！"], doNextFoe);
+    queueMsg([e.name+"の "+mv.name+"！", e.name+"は 傷を 癒やした！"], advanceTurn);
   }else{                                     // heavy（強単体）
-    const t=randAlive(); if(!t){ doNextFoe(); return; }
+    const t=randAlive(); if(!t){ advanceTurn(); return; }
     const d=Math.floor(calcDmg(Math.floor(e.atk*(mv.mult||1.6)), defOf(t))); t.hp-=d; battle.shakeP=14; fx("hit");
     const lines=[e.name+"の "+mv.name+"！", t.name+"に "+d+"の 大ダメージ！"];
     if(t.hp<=0){ t.hp=0; t.down=true; lines.push(t.name+"は 倒れた！"); }
-    queueMsg(lines, doNextFoe);
+    queueMsg(lines, advanceTurn);
   }
 }
 function learnAt(m){      // この lv で覚える特技/呪文があれば習得して名前を返す

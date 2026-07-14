@@ -54,6 +54,9 @@ canvas{display:block;border-radius:4px;background:#2a3a2a;touch-action:none;max-
        align-items:center;min-height:100vh;box-sizing:border-box;}
   #pad{margin-top:auto;}            /* パッドを画面下（親指が届く位置）へ */
   #hint{font-size:11px;margin-top:8px;}
+  /* スマホではh2が消えてcanvasが画面上端に詰まるため、固定表示のままだとcanvas左上（タップ操作域）に重なってしまう。
+     通常の配置に戻し、ヒント文の下（canvasの外）に表示することでタップを奪わないようにする */
+  #btnBack{position:static;display:block;margin:8px auto 0;}
 }
 </style>
 </head>
@@ -810,21 +813,29 @@ function gainExp(ex){
       if(learned) msgs.push(m.name+"は "+learned+"を 覚えた！");
     }
   }
-  if(msgs.length) fx("level");
+  // ※効果音は呼び出し元(winBattle)で、勝利ジングルとの順番を調整してから鳴らす
   return msgs;
 }
 function winBattle(){
   fx("win");   // 実機のブザー/LED演出（勝利=青）はそのまま鳴らす。ブラウザ側の音は下のジングルで別途鳴らす
   const killed=battle.enemies.filter(e=>!e.fled);
+  const isBoss = killed.some(e=>e.name==="魔王"||e.name==="真なる魔王");
   stopBgm();   // 戦闘曲を止めてから勝利ジングルを鳴らす（重ならないように）
-  playVictoryJingle(killed.some(e=>e.name==="魔王"||e.name==="真なる魔王"));
+  const jingleMs = playVictoryJingle(isBoss);
   const totExp=killed.reduce((s,e)=>s+e.exp,0), totGold=killed.reduce((s,e)=>s+e.gold,0);
   stats.gold+=totGold;
   const head = killed.length>1 ? "魔物を 全滅させた！" : (killed[0]?killed[0].name+"を 倒した！":"勝利！");
   const lines=[head, "経験値 "+totExp+"　"+totGold+"ゴールド！"];
-  lines.push(...gainExp(totExp));
+  const levelMsgs=gainExp(totExp);
+  lines.push(...levelMsgs);
+  let bgmDelay=jingleMs;
+  if(levelMsgs.length){
+    try{ fetch("/fx?s=level",{cache:"no-store"}); }catch(e){}   // 実機ブザー/LEDは今まで通りすぐ演出
+    scheduleSfx(playLevelUpJingle, jingleMs);                    // ブラウザのジングルは勝利ファンファーレの後に鳴らす（重ならないように）
+    bgmDelay += LEVEL_JINGLE_MS;
+  }
   const cb=battle.onWin;
-  queueMsg(lines, ()=>{ endBattle(); saveGame(); if(cb) cb(); });   // 勝利を保存（強制戦闘なら勝利後イベントへ）
+  queueMsg(lines, ()=>{ endBattle(bgmDelay); saveGame(); if(cb) cb(); });   // 勝利を保存（強制戦闘なら勝利後イベントへ）
 }
 function loseBattle(){
   stopBgm();   // 全滅の場面は無音に。復帰後は loadMap がリスポーン先のBGMに切り替える
@@ -834,7 +845,12 @@ function loseBattle(){
     loadMap(respawn.map, respawn.tx, respawn.ty);   // 教会(リスポーン地点)で復活
   });
 }
-function endBattle(){ mode="field"; battle=null; encCooldown=100; clearMoveInput(); playBgm(mapBgmFor(currentMap)); }
+function endBattle(bgmDelay){
+  mode="field"; battle=null; encCooldown=100; clearMoveInput();
+  // 勝利ジングル（＋レベルアップ音）が鳴り終わってから次のBGMに切り替える（早送りで被って聞こえないように）
+  if(bgmDelay>0) scheduleSfx(()=>playBgm(mapBgmFor(currentMap)), bgmDelay);
+  else playBgm(mapBgmFor(currentMap));
+}
 
 // ====== イベント：洞窟で魔法使いを救出して仲間にする ======
 function eventRescueMage(){
@@ -1018,7 +1034,7 @@ function advanceSvc(){
   if(s.msgIdx>=s.msgs.length){ const cb=s.after; s.after=null; if(cb)cb(); } else s.shown=0;
 }
 function confirmSvc(){ const s=service; if(s.phase==="menu"){ const a=s.actions[s.cursor]; if(a)a(); } else advanceSvc(); }
-function clearMoveInput(){ keys['w']=keys['s']=keys['a']=keys['d']=false; tapDir=null; moveTarget=null; talkTarget=null; }  // 遷移時に押しっぱなし入力・タップ移動を解除
+function clearMoveInput(){ keys['w']=keys['s']=keys['a']=keys['d']=false; moveTarget=null; talkTarget=null; }  // 遷移時に押しっぱなし入力・タップ移動を解除
 function closeService(){
   const b=service.b, d=buildingDoor(b);
   // ドアのタイルへ戻し、_onDoor=true のままにする。
@@ -1213,7 +1229,7 @@ function canvasPos(e){
   const r=canvas.getBoundingClientRect();
   return { x:(e.clientX-r.left)*(canvas.width/r.width), y:(e.clientY-r.top)*(canvas.height/r.height) };
 }
-let tapDir=null, moveTarget=null, talkTarget=null;
+let moveTarget=null, talkTarget=null;
 canvas.addEventListener("pointerdown",(e)=>{
   initAudio();   // ブラウザの自動再生制限の解除（最初の入力で1回）
   if(mode==="intro"){ advanceIntro(); return; }
@@ -1253,9 +1269,6 @@ canvas.addEventListener("pointerdown",(e)=>{
   if(npc){ moveTarget={x:npc.x*TILE+TILE/2, y:npc.y*TILE+TILE/2}; talkTarget=npc; }  // NPCなら近づいて会話
   else { moveTarget={x:wx, y:wy}; talkTarget=null; }
 });
-canvas.addEventListener("pointerup",()=>{ tapDir=null; });
-canvas.addEventListener("pointerleave",()=>{ tapDir=null; });
-
 // ====== ハードウェア効果音（Arduinoのブザー＋WS2812 LED） ======
 // 短時間に同じ演出を連続して鳴らすとArduino側が詰まるので最小間隔をあける（種類ごとに間引き）。
 // 種類ごとにすることで、例えば勝利(win)の直後にレベルアップ(level)が来ても、
@@ -1282,19 +1295,22 @@ let sfxTimers=[];
 function scheduleSfx(fn, delay){ sfxTimers.push(setTimeout(fn, delay)); }
 function cancelScheduledSfx(){ sfxTimers.forEach(clearTimeout); sfxTimers=[]; }
 // レベルアップの効果音：実機ブザー(playSeq)と同じ音階(523/659/784/1047Hz)で統一し、ハードとブラウザの音がズレない/被らないようにする
+const LEVEL_JINGLE_MS = 4*130;   // 音数×間隔（playLevelUpJingleの所要時間、勝利ジングルとの順序調整に使う）
 function playLevelUpJingle(){
   if(!audioCtx || bgmVolume<=0) return;
   [523,659,784,1047].forEach((f,i)=>scheduleSfx(()=>beep(f,null,0.16,"square",0.09*bgmVolume), i*130));
 }
-// 勝利ジングル：通常戦闘は短め、魔王(・真なる魔王)討伐時は長く壮大なファンファーレにする
+// 勝利ジングル：通常戦闘は短め、魔王(・真なる魔王)討伐時は長く壮大なファンファーレにする。所要時間(ms)を返す
 function playVictoryJingle(special){
-  if(!audioCtx || bgmVolume<=0) return;
   const notes = special
     ? [261.63,329.63,392,523.25,392,523.25,659.25,783.99]
     : [392,523.25,659.25,783.99,1046.5];
   const wave = special ? "sawtooth" : "triangle";
   const step = special ? 160 : 120;
-  notes.forEach((f,i)=>scheduleSfx(()=>beep(f,null,(step/1000)*0.95,wave,(special?0.10:0.08)*bgmVolume), i*step));
+  if(audioCtx && bgmVolume>0){
+    notes.forEach((f,i)=>scheduleSfx(()=>beep(f,null,(step/1000)*0.95,wave,(special?0.10:0.08)*bgmVolume), i*step));
+  }
+  return notes.length*step;
 }
 
 // ====== 戦闘BGM（ブラウザのWeb Audioで合成。ハードのブザーは効果音専用のまま） ======

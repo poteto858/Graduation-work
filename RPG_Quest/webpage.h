@@ -1433,7 +1433,7 @@ function update(){
     // （2.4はPCの等倍表示を基準にした値。スマホでCSSにより縮小表示されても体感速度が変わらないようにする）
     const _rect=canvas.getBoundingClientRect();
     const _scale=_rect.width>0 ? Math.min(3, Math.max(1, VIEW/_rect.width)) : 1;
-    const sp=4.0*_scale*dtScale; let dx=0,dy=0, arrived=false;
+    const sp=5.0*_scale*dtScale; let dx=0,dy=0, arrived=false;
     if(keys["w"])dy-=sp; if(keys["s"])dy+=sp;
     if(keys["a"])dx-=sp; if(keys["d"])dx+=sp;
     const j=joyState;                          // ジョイスティック

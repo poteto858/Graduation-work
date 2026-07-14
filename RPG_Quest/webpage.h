@@ -298,6 +298,7 @@ let respawn={ map:"town", tx:9, ty:11 };   // 教会で更新するリスポー�
 
 // 会話状態
 let dialog={active:false, lines:[], idx:0, name:"", shown:0, t:0};
+let statusRects={};   // ステータス画面のBGM音量◀▶のタップ判定矩形
 
 // パーティ（party[0]=勇者）。stats は勇者の別名（既存コード互換）。
 // gold/herb/elixir/weapon/armor はパーティ共通として勇者に持たせる。
@@ -811,8 +812,10 @@ function gainExp(ex){
   return msgs;
 }
 function winBattle(){
-  fx("win");
+  fx("win");   // 実機のブザー/LED演出（勝利=青）はそのまま鳴らす。ブラウザ側の音は下のジングルで別途鳴らす
   const killed=battle.enemies.filter(e=>!e.fled);
+  stopBgm();   // 戦闘曲を止めてから勝利ジングルを鳴らす（重ならないように）
+  playVictoryJingle(killed.some(e=>e.name==="魔王"||e.name==="真なる魔王"));
   const totExp=killed.reduce((s,e)=>s+e.exp,0), totGold=killed.reduce((s,e)=>s+e.gold,0);
   stats.gold+=totGold;
   const head = killed.length>1 ? "魔物を 全滅させた！" : (killed[0]?killed[0].name+"を 倒した！":"勝利！");
@@ -1160,6 +1163,8 @@ document.addEventListener("keydown",(e)=>{
   }
   if(mode==="status"){
     if(k==="m"||k==="escape"||k==="i"||k===" "||e.key==="Enter"){ mode="field"; clearMoveInput(); }
+    if(k==="a"||e.key==="ArrowLeft"){ initAudio(); setBgmVolume(bgmVolume-0.1); }
+    if(k==="d"||e.key==="ArrowRight"){ initAudio(); setBgmVolume(bgmVolume+0.1); }
     return;
   }
   if(mode==="field" && (k==="m"||k==="i")){ mode="status"; return; }
@@ -1231,7 +1236,12 @@ canvas.addEventListener("pointerdown",(e)=>{
     if(s.rects){ for(const r of s.rects){ if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h){ s.cursor=r.i; confirmSvc(); return; } } }
     return;
   }
-  if(mode==="status"){ mode="field"; clearMoveInput(); return; }
+  if(mode==="status"){
+    const p=canvasPos(e);
+    if(statusRects.minus && p.x>=statusRects.minus.x && p.x<=statusRects.minus.x+statusRects.minus.w && p.y>=statusRects.minus.y && p.y<=statusRects.minus.y+statusRects.minus.h){ initAudio(); setBgmVolume(bgmVolume-0.1); return; }
+    if(statusRects.plus  && p.x>=statusRects.plus.x  && p.x<=statusRects.plus.x+statusRects.plus.w   && p.y>=statusRects.plus.y  && p.y<=statusRects.plus.y+statusRects.plus.h){ initAudio(); setBgmVolume(bgmVolume+0.1); return; }
+    mode="field"; clearMoveInput(); return;
+  }
   const p=canvasPos(e);
   if(p.x>VIEW-72 && p.y<72){ mode="status"; return; }   // 右上メニューボタン
   // タップした地点へ歩いて行く（ポイント移動）。ワールド座標 = 画面座標 + カメラ
@@ -1253,7 +1263,31 @@ function fx(s){
   const now=Date.now();
   if(now-(lastFxAt[s]||0) < 120) return;   // 同じ種類が120ms以内に連続する場合だけ無視
   lastFxAt[s]=now;
+  sfx(s);   // ブラウザ側の効果音（実機のブザー/LEDと同時に鳴る）
   try{ fetch("/fx?s="+s,{cache:"no-store"}); }catch(e){}
+}
+// ブラウザ側の効果音（Web Audioで生成。実機のブザー/LED演出と同じタイミングで鳴らす）
+function sfx(s){
+  if(!audioCtx || bgmVolume<=0) return;
+  if(s==="hit")        beep(180,60,0.12,"square",0.14*bgmVolume);
+  else if(s==="heal")  beep(392,784,0.25,"sine",0.10*bgmVolume);
+  else if(s==="enc"){  beep(220,330,0.09,"triangle",0.09*bgmVolume); setTimeout(()=>beep(330,440,0.09,"triangle",0.09*bgmVolume),90); }
+  else if(s==="level") playLevelUpJingle();
+}
+// レベルアップの効果音：実機ブザー(playSeq)と同じ音階(523/659/784/1047Hz)で統一し、ハードとブラウザの音がズレない/被らないようにする
+function playLevelUpJingle(){
+  if(!audioCtx || bgmVolume<=0) return;
+  [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,null,0.16,"square",0.09*bgmVolume), i*130));
+}
+// 勝利ジングル：通常戦闘は短め、魔王(・真なる魔王)討伐時は長く壮大なファンファーレにする
+function playVictoryJingle(special){
+  if(!audioCtx || bgmVolume<=0) return;
+  const notes = special
+    ? [261.63,329.63,392,523.25,392,523.25,659.25,783.99]
+    : [392,523.25,659.25,783.99,1046.5];
+  const wave = special ? "sawtooth" : "triangle";
+  const step = special ? 160 : 120;
+  notes.forEach((f,i)=>setTimeout(()=>beep(f,null,(step/1000)*0.95,wave,(special?0.10:0.08)*bgmVolume), i*step));
 }
 
 // ====== 戦闘BGM（ブラウザのWeb Audioで合成。ハードのブザーは効果音専用のまま） ======
@@ -1276,18 +1310,21 @@ function beep(f0,f1,dur,type,vol){
 }
 // 短い反復フレーズ(オスティナート)をループする、簡易チップチューン風BGM。場面ごとに曲を切り替える。
 const BGM_TRACKS={
-  battle:     { notes:[110,110,130.81,110,146.83,110,164.81,146.83],                          step:220, wave:"sawtooth", vol:0.05 },  // 通常戦闘
-  battleTough:{ notes:[98,98,116.54,98,130.81,116.54,146.83,130.81,98,116.54],                 step:170, wave:"sawtooth", vol:0.06 },  // 強敵(固有行動を持つ敵・中ボス)
-  battleBoss: { notes:[82.41,82.41,97.99,82.41,110,97.99,123.47,110,130.81,110,97.99,82.41],   step:150, wave:"sawtooth", vol:0.07 },  // 魔王戦
-  field:      { notes:[220,246.94,261.63,246.94,220,196,220,246.94],                           step:420, wave:"triangle", vol:0.045 }, // フィールド／洞窟・道など未指定エリア共通
-  town:       { notes:[261.63,329.63,392,329.63,293.66,349.23,392,440],                        step:380, wave:"triangle", vol:0.045 }, // はじまりの町
-  town2:      { notes:[329.63,392,440,392,349.23,392,440,493.88],                              step:360, wave:"triangle", vol:0.045 }, // 奥の町
-  castle:     { notes:[73.42,73.42,87.31,73.42,82.41,73.42,69.30,73.42],                       step:480, wave:"sawtooth", vol:0.05 },  // 魔王城
+  battle:     { notes:[110,110,130.81,110,146.83,110,164.81,146.83],                          step:220, wave:"sawtooth", vol:0.10 },  // 通常戦闘
+  battleTough:{ notes:[98,98,116.54,98,130.81,116.54,146.83,130.81,98,116.54],                 step:170, wave:"sawtooth", vol:0.12 },  // 強敵(固有行動を持つ敵・中ボス)
+  battleBoss: { notes:[82.41,82.41,97.99,82.41,110,97.99,123.47,110,130.81,110,97.99,82.41],   step:150, wave:"sawtooth", vol:0.14 },  // 魔王戦
+  field:      { notes:[220,246.94,261.63,246.94,220,196,220,246.94],                           step:420, wave:"triangle", vol:0.09 },  // フィールド／洞窟・道など未指定エリア共通
+  town:       { notes:[261.63,329.63,392,329.63,293.66,349.23,392,440],                        step:380, wave:"triangle", vol:0.09 },  // はじまりの町
+  town2:      { notes:[329.63,392,440,392,349.23,392,440,493.88],                              step:360, wave:"triangle", vol:0.09 },  // 奥の町
+  castle:     { notes:[73.42,73.42,87.31,73.42,82.41,73.42,69.30,73.42],                       step:480, wave:"sawtooth", vol:0.10 },  // 魔王城
 };
 let bgmTimer=null, bgmStep=0, bgmCurrent=null;
+let bgmVolume=1;   // ユーザー設定のBGM音量倍率（0〜2）。ステータス画面で調整、localStorageに保存
+function loadBgmVolume(){ try{ const v=parseFloat(localStorage.getItem("rpgQuestBgmVol")); if(!isNaN(v)) bgmVolume=Math.min(2,Math.max(0,v)); }catch(e){} }
+function setBgmVolume(v){ bgmVolume=Math.round(Math.min(2,Math.max(0,v))*20)/20; try{ localStorage.setItem("rpgQuestBgmVol", bgmVolume); }catch(e){} }
 function bgmTick(){
-  const t=BGM_TRACKS[bgmCurrent]; if(!t) return;
-  beep(t.notes[bgmStep%t.notes.length], null, (t.step/1000)*0.9, t.wave, t.vol);
+  const t=BGM_TRACKS[bgmCurrent]; if(!t || bgmVolume<=0) return;
+  beep(t.notes[bgmStep%t.notes.length], null, (t.step/1000)*0.9, t.wave, t.vol*bgmVolume);
   bgmStep++;
 }
 function playBgm(name){
@@ -1330,6 +1367,8 @@ function joyNavDo(up,down,left,right){
   }else if(mode==="service"){ const s=service; if(!s||s.phase!=="menu")return; const n=s.labels.length;
     if(up)s.cursor=Math.max(0,s.cursor-1); if(down)s.cursor=Math.min(n-1,s.cursor+1);
     if(left)s.cursor=Math.max(0,s.cursor-1); if(right)s.cursor=Math.min(n-1,s.cursor+1);
+  }else if(mode==="status"){
+    if(left) setBgmVolume(bgmVolume-0.1); if(right) setBgmVolume(bgmVolume+0.1);
   }
 }
 function joyButton(){
@@ -1379,7 +1418,7 @@ function update(){
     // （2.4はPCの等倍表示を基準にした値。スマホでCSSにより縮小表示されても体感速度が変わらないようにする）
     const _rect=canvas.getBoundingClientRect();
     const _scale=_rect.width>0 ? Math.min(3, Math.max(1, VIEW/_rect.width)) : 1;
-    const sp=2.4*_scale; let dx=0,dy=0, arrived=false;
+    const sp=3.0*_scale*dtScale; let dx=0,dy=0, arrived=false;
     if(keys["w"])dy-=sp; if(keys["s"])dy+=sp;
     if(keys["a"])dx-=sp; if(keys["d"])dx+=sp;
     const j=joyState;                          // ジョイスティック
@@ -2000,9 +2039,22 @@ function drawStatus(){
   if(stats.elixir>0) items.push("エリクサー×"+stats.elixir);
   ctx.fillStyle="#fff"; ctx.font="20px monospace";
   ctx.fillText(items.join("   "), lx+16, ly);
+  ly+=36;
+  // BGM音量（◀▶／左右キーで調整、タップにも対応）
+  ctx.fillStyle="#ffd23f"; ctx.font="22px 'Hiragino Kaku Gothic ProN',sans-serif";
+  ctx.fillText("BGM音量", lx, ly);
+  const volPct=Math.round(bgmVolume*50);   // bgmVolume 0〜2 を 0〜100% 表示
+  const vx=lx+150, vArrowW=30;
+  statusRects.minus={x:vx, y:ly-24, w:vArrowW, h:32};
+  statusRects.plus ={x:vx+150, y:ly-24, w:vArrowW, h:32};
+  ctx.fillStyle="#cfe0ff"; ctx.font="22px monospace"; ctx.textAlign="center";
+  ctx.fillText("◀", vx+vArrowW/2, ly);
+  ctx.fillText(volPct+"%", vx+95, ly);
+  ctx.fillText("▶", vx+150+vArrowW/2, ly);
+  ctx.textAlign="left";
   // 閉じる案内
   ctx.fillStyle="#9aa0b0"; ctx.font="18px sans-serif"; ctx.textAlign="center";
-  ctx.fillText("Mキー / タップ で閉じる", VIEW/2, y+h-18);
+  ctx.fillText("← → で音量調整　｜　Mキー / 他の場所をタップ で閉じる", VIEW/2, y+h-18);
   ctx.textAlign="left";
 }
 
@@ -2100,7 +2152,14 @@ function updateService(){
   const full=s.msgs[s.msgIdx]||""; if(s.shown<full.length) s.shown++;
 }
 
-function loop(){ update(); if(mode==="service") updateService(); draw(); requestAnimationFrame(loop); }
+let dtScale=1, _lastFrameT=0;
+function loop(){
+  const now=performance.now();
+  // 端末性能でフレームレートが変わっても移動速度が変わらないよう、直前フレームからの経過時間で移動量を補正（60fps基準）
+  if(_lastFrameT){ dtScale=Math.min(3, Math.max(0.2, (now-_lastFrameT)/16.6667)); }
+  _lastFrameT=now;
+  update(); if(mode==="service") updateService(); draw(); requestAnimationFrame(loop);
+}
 const _ld=document.getElementById("loading");
 function hideLoading(){ if(_ld) _ld.style.display="none"; }
 // マップを /maps.json から取得（PCプレビューは静的ファイル、実機はArduinoが配信）。
@@ -2124,6 +2183,7 @@ async function loadAllMaps(){
 (async function start(){
   try{
     MAPS = await loadAllMaps();                       // マップ読み込み（これが無いと動けない）
+    loadBgmVolume();
     buildSprites(); loadGame(); loadMap(respawn.map, respawn.tx, respawn.ty); startIntro(); loop();
     hideLoading();   // 読み込み完了
     setInterval(pollJoy,150);                         // ★マップ取得後にジョイ通信を開始（起動時の取得を邪魔しない）

@@ -12,7 +12,7 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 
 > 各ゲームの**中身は `MazeGame/` と `RPG_Quest/` で開発**し、`GameSelect/` はその生成物を集めて配信します（更新の置き場所を分離）。
 >
-> **遊ぶ／デモするなら `GameSelect/` を書き込めばOK**（迷路もRPGも入っていて、起動時に選べます）。
+> **遊ぶときは `GameSelect/` を書き込めばOK**（迷路もRPGも入っていて、起動時に選べます）。
 
 <p align="center">
   <img src="RPG_Quest/報告画像/fig2_party.png" width="45%" alt="RPG：仲間と隊列を組んで冒険">

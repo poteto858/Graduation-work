@@ -67,16 +67,30 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 ## 共通の仕組み（このプロジェクトの肝）
 
 ```mermaid
-flowchart LR
-    B["ブラウザ（ゲーム本体）<br/>JavaScript で描画・ロジック"]
-    A["Arduino UNO R4 WiFi<br/>・Wi-Fi接続 / Webサーバー<br/>・HTMLを丸ごと配信<br/>・センサー値や効果音を処理"]
-    B -->|"HTTPリクエスト"| A
-    A -->|"HTML / JSON"| B
+flowchart TB
+    P(["あなた（プレイヤー）"])
+    B["ブラウザ＝ゲーム本体（JavaScript）<br/>描画・移動・あたり判定・戦闘・会話・セーブ"]
+    A["Arduino UNO R4 WiFi＝Webサーバー<br/>「/」ゲームHTMLを丸ごと配信　「/state」入力を返す<br/>「/fx」効果音とLED　「/led」ミニマップ更新"]
+    subgraph HW["接続ハードウェア"]
+      JOY["ジョイスティック<br/>VRx→A0 / VRy→A1 / SW→D2"]
+      BUZ["パッシブブザー<br/>信号→D9"]
+      NEO["WS2812 RGB LED<br/>DIN→D6"]
+      OLED["OLED（SSD1306）<br/>接続用QRを表示"]
+      MTX["内蔵12×8 LEDマトリクス<br/>（配線不要）"]
+    end
+    P -->|"操作（WASD・タップ・スティック）"| B
+    B -->|"画面・音で反応"| P
+    B <-->|"Wi-Fi / HTTP"| A
+    JOY -->|"傾き・ボタン（入力）"| A
+    A -->|"効果音を鳴らす"| BUZ
+    A -->|"イベントで発光"| NEO
+    A -->|"接続用QRを表示"| OLED
+    A -->|"現在地をミニマップ表示"| MTX
 ```
 
-- **ゲームのロジック・描画はすべてブラウザ側の JavaScript**。
-- Arduino は「**Webサーバー**」として、HTMLを配り、ジョイスティックの値を返し、効果音やLEDを鳴らす。
-- だから重い描画はPC/スマホ側で動き、Arduinoの非力なCPUを使わずに済む。
+- **ゲームのロジック・描画はすべてブラウザ側の JavaScript**。Arduinoはゲームの中身を一切持たない。
+- Arduino は「**Webサーバー**」として、HTMLを配り、ジョイスティックの値を返し、効果音やLEDを鳴らす。**入力（ジョイスティック）・出力（ブザー/LED）・表示（ミニマップ）**の三拍子がそろっている。
+- だから重い描画はPC/スマホ側で動き、Arduinoの非力なCPU（48MHz・RAM32KB）を使わずに済む。
 - HTMLは **gzip圧縮のまま配信**（ブラウザが自動展開＝マイコンは展開しない）してフラッシュを節約。
 
 詳しい仕組み・操作・配線は、各フォルダの README を参照してください。

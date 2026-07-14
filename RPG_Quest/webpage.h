@@ -608,9 +608,11 @@ function startBattle(forced, onWin){
   battle={ enemies, state:"msg", msg:[], msgIdx:0, shown:0,
            after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null, onWin:onWin||null, noFlee:!!onWin,
            turnQueue:[], turnIdx:0, actor:null };
-  mode="battle"; fx("enc");
+  mode="battle";
   // 戦闘BGMは相手の強さで切り替える：魔王＝専用曲、固有行動を持つ強敵/中ボス＝強敵曲、それ以外＝通常曲
+  // （BGM切り替え時に予約中の効果音がキャンセルされるため、enc効果音はBGM切り替えの後に鳴らす）
   playBgm((forced===MAOH || forced===MAOH_TRUE) ? "battleBoss" : (forced===GEHENA || list.some(e=>e.moves)) ? "battleTough" : "battle");
+  fx("enc");
   const head = multi ? (list[0].name+" の 群れ") : list[0].name;
   queueMsg([head+"が あらわれた！"], startRound);
 }
@@ -1271,13 +1273,18 @@ function sfx(s){
   if(!audioCtx || bgmVolume<=0) return;
   if(s==="hit")        beep(180,60,0.12,"square",0.14*bgmVolume);
   else if(s==="heal")  beep(392,784,0.25,"sine",0.10*bgmVolume);
-  else if(s==="enc"){  beep(220,330,0.09,"triangle",0.09*bgmVolume); setTimeout(()=>beep(330,440,0.09,"triangle",0.09*bgmVolume),90); }
+  else if(s==="enc"){  beep(220,330,0.09,"triangle",0.09*bgmVolume); scheduleSfx(()=>beep(330,440,0.09,"triangle",0.09*bgmVolume),90); }
   else if(s==="level") playLevelUpJingle();
 }
+// 音階を連続で鳴らす予約タイマー一覧。BGM切り替え時（stopBgm）にまとめてキャンセルし、
+// 前の曲やジングルの音が新しい曲に被って聞こえる「重なり」を防ぐ
+let sfxTimers=[];
+function scheduleSfx(fn, delay){ sfxTimers.push(setTimeout(fn, delay)); }
+function cancelScheduledSfx(){ sfxTimers.forEach(clearTimeout); sfxTimers=[]; }
 // レベルアップの効果音：実機ブザー(playSeq)と同じ音階(523/659/784/1047Hz)で統一し、ハードとブラウザの音がズレない/被らないようにする
 function playLevelUpJingle(){
   if(!audioCtx || bgmVolume<=0) return;
-  [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,null,0.16,"square",0.09*bgmVolume), i*130));
+  [523,659,784,1047].forEach((f,i)=>scheduleSfx(()=>beep(f,null,0.16,"square",0.09*bgmVolume), i*130));
 }
 // 勝利ジングル：通常戦闘は短め、魔王(・真なる魔王)討伐時は長く壮大なファンファーレにする
 function playVictoryJingle(special){
@@ -1287,7 +1294,7 @@ function playVictoryJingle(special){
     : [392,523.25,659.25,783.99,1046.5];
   const wave = special ? "sawtooth" : "triangle";
   const step = special ? 160 : 120;
-  notes.forEach((f,i)=>setTimeout(()=>beep(f,null,(step/1000)*0.95,wave,(special?0.10:0.08)*bgmVolume), i*step));
+  notes.forEach((f,i)=>scheduleSfx(()=>beep(f,null,(step/1000)*0.95,wave,(special?0.10:0.08)*bgmVolume), i*step));
 }
 
 // ====== 戦闘BGM（ブラウザのWeb Audioで合成。ハードのブザーは効果音専用のまま） ======
@@ -1295,6 +1302,12 @@ let audioCtx=null;
 function initAudio(){   // ブラウザの自動再生制限のため、最初のキー入力/タップで一度だけ呼ぶ
   if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
   if(audioCtx && audioCtx.state==="suspended") audioCtx.resume();
+  // 音声ロック解除より前にBGMを鳴らそうとして失敗していた場合（起動直後のオープニングBGMなど）、
+  // ここで解除された瞬間に鳴らし直す（bgmCurrentはあるのにbgmTimerが無い＝鳴らせず待機中の状態）
+  if(audioCtx && bgmCurrent && !bgmTimer && BGM_TRACKS[bgmCurrent]){
+    bgmStep=0; bgmTick();
+    bgmTimer=setInterval(bgmTick, BGM_TRACKS[bgmCurrent].step);
+  }
 }
 function beep(f0,f1,dur,type,vol){
   if(!audioCtx) return;
@@ -1335,7 +1348,7 @@ function playBgm(name){
   bgmStep=0; bgmTick();
   bgmTimer=setInterval(bgmTick, BGM_TRACKS[name].step);
 }
-function stopBgm(){ if(bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } bgmCurrent=null; }
+function stopBgm(){ if(bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } bgmCurrent=null; cancelScheduledSfx(); }
 function mapBgmFor(name){ return name==="town" ? "town" : name==="town2" ? "town2" : name==="castle" ? "castle" : "field"; }
 
 // ====== ジョイスティック（/state をポーリング） ======

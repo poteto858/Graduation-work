@@ -537,11 +537,11 @@ const INTRO_PAGES=[
   ["仲間とともに旅に出て、","魔王を倒し、","平和を取り戻すのだ！"]
 ];
 function introLen(){ return INTRO_PAGES[intro.page].join("\n").length; }
-function startIntro(){ intro.active=true; intro.page=0; intro.shown=0; intro.t=0; mode="intro"; }
+function startIntro(){ intro.active=true; intro.page=0; intro.shown=0; intro.t=0; mode="intro"; playBgm("intro"); }
 function advanceIntro(){
   if(intro.shown < introLen()){ intro.shown = introLen(); return; }   // タイプ途中なら一気に全表示
   intro.page++;
-  if(intro.page >= INTRO_PAGES.length){ intro.active=false; mode="field"; clearMoveInput(); }   // 冒険スタート
+  if(intro.page >= INTRO_PAGES.length){ intro.active=false; mode="field"; clearMoveInput(); playBgm(mapBgmFor(currentMap)); }   // 冒険スタート
   else { intro.shown=0; intro.t=0; }
 }
 function drawIntro(){
@@ -1315,8 +1315,9 @@ const BGM_TRACKS={
   battleBoss: { notes:[82.41,82.41,97.99,82.41,110,97.99,123.47,110,130.81,110,97.99,82.41],   step:150, wave:"sawtooth", vol:0.14 },  // 魔王戦
   field:      { notes:[220,246.94,261.63,246.94,220,196,220,246.94],                           step:420, wave:"triangle", vol:0.09 },  // フィールド／洞窟・道など未指定エリア共通
   town:       { notes:[261.63,329.63,392,329.63,293.66,349.23,392,440],                        step:380, wave:"triangle", vol:0.09 },  // はじまりの町
-  town2:      { notes:[329.63,392,440,392,349.23,392,440,493.88],                              step:360, wave:"triangle", vol:0.09 },  // 奥の町
+  town2:      { notes:[493.88,440,392,349.23,392,440,523.25,440],                              step:340, wave:"square",   vol:0.09 },  // 奥の町（はじまりの町と聞き分けやすいよう波形・旋律を変えた）
   castle:     { notes:[73.42,73.42,87.31,73.42,82.41,73.42,69.30,73.42],                       step:480, wave:"sawtooth", vol:0.10 },  // 魔王城
+  intro:      { notes:[196,261.63,329.63,392,329.63,261.63,293.66,392],                        step:340, wave:"sawtooth", vol:0.10 },  // オープニング（ヒロイックに）
 };
 let bgmTimer=null, bgmStep=0, bgmCurrent=null;
 let bgmVolume=1;   // ユーザー設定のBGM音量倍率（0〜2）。ステータス画面で調整、localStorageに保存
@@ -1352,6 +1353,7 @@ async function pollJoy(){
 function applyJoy(j){
   joyState=j;
   if(j.x===0&&j.y===0) return;                 // 未接続(値0)は無視
+  initAudio();   // 実機ジョイスティックだけで遊んでいる場合でも、動かした時点で音声再生のロック解除を試みる
   const left=j.x<350,right=j.x>700,up=j.y<350,down=j.y>700, btn=j.b===1;
   if(mode!=="field"){                          // メニュー類：傾けたエッジで1回だけ
     if((up||down||left||right)&&joyNav){ joyNav=false; joyNavDo(up,down,left,right); }
@@ -1418,7 +1420,7 @@ function update(){
     // （2.4はPCの等倍表示を基準にした値。スマホでCSSにより縮小表示されても体感速度が変わらないようにする）
     const _rect=canvas.getBoundingClientRect();
     const _scale=_rect.width>0 ? Math.min(3, Math.max(1, VIEW/_rect.width)) : 1;
-    const sp=3.0*_scale*dtScale; let dx=0,dy=0, arrived=false;
+    const sp=4.0*_scale*dtScale; let dx=0,dy=0, arrived=false;
     if(keys["w"])dy-=sp; if(keys["s"])dy+=sp;
     if(keys["a"])dx-=sp; if(keys["d"])dx+=sp;
     const j=joyState;                          // ジョイスティック

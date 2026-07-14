@@ -29,6 +29,26 @@ https://github.com/user-attachments/assets/8dd8d202-f109-4340-bb27-46e730ab1825
 
 https://github.com/user-attachments/assets/cd854839-ded3-4380-9915-2d6cd00a5f8b
 
+### 実機（Arduino本体）でのプレイ
+
+スマホから実機にWi-Fi接続してプレイしている様子です。内蔵12×8 LEDマトリクスのミニマップや、ブレッドボード上のジョイスティック・WS2812 RGB LED・ブザーの配線も映っています。
+
+#### ゲーム選択
+
+https://github.com/user-attachments/assets/9c39f2c4-c28a-4550-9a65-3b938bf63ec0
+
+#### 町を探索（内蔵LEDマトリクスのミニマップ表示）
+
+https://github.com/user-attachments/assets/6073bf3b-86d5-4bb1-b4bf-572098745952
+
+#### 戦闘
+
+https://github.com/user-attachments/assets/dd6a243c-554c-49dc-9690-96b8867714f7
+
+<p align="center">
+  <img width="320" alt="OLEDに表示される接続用QRコード" src="https://github.com/user-attachments/assets/b456ad90-c5f8-483b-abf5-227a11ea96f4">
+</p>
+
 ## しくみ（URLパスで出し分け）
 Arduino が「どのURLが来たか」で配信を変えます（2つの大きな JS を混ぜないので名前衝突がない）。
 

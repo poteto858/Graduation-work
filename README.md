@@ -114,8 +114,8 @@ flowchart LR
 
 | 項目 | 値 |
 |------|----|
-| フラッシュ使用率（256KB中） | MazeGame 37% ／ RPG_Quest 83% ／ GameSelect 91% |
-| RAM使用率（32KB中） | MazeGame 31% ／ RPG_Quest 31% ／ GameSelect 38% |
+| フラッシュ使用率（256KB中） | GameSelect（統合版） 91% |
+| RAM使用率（32KB中） | GameSelect（統合版） 38% |
 | RPGの配信HTML | 約230KB → **gzip 約120KB** に圧縮して配信 |
 | ゲーム規模（RPG） | マップ7・敵12種・仲間3人（最大4人パーティ）・エンディングあり |
 

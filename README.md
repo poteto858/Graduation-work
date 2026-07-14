@@ -28,7 +28,7 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 ## ▶ すぐ遊ぶ（ダウンロード → 書き込むだけ）
 
 `GameSelect/` を書き込めば、**迷路もRPGも1台で**遊べます。
-**Wi-Fi設定すら不要**です（初期状態でArduino自身がWi-Fi「GameSelect」を立てる *デモモード* で起動します）。
+**Wi-Fi設定すら不要**です（`arduino_secrets.h` が無い配布時の状態では、家のWi-Fiへの接続を約12秒試したあと自動でArduino自身のWi-Fi「GameSelect」を立てて起動します）。
 
 ### 用意するもの
 - **Arduino UNO R4 WiFi** 本体 ＋ **USB-Cケーブル**
@@ -55,11 +55,12 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 3. **ゲーム選択画面**が出る → 迷路 / RPG を選んでプレイ
    - 操作：PCは **WASD / 矢印キー**、スマホは**画面下の仮想十字パッド**（十字＋A/B）やタップ（迷路・RPG共通）
 
-> **家のWi-Fi／実機ジョイスティックを使う場合**：初期状態の *デモモード*（`GameSelect.ino` の `#define PORTABLE_DEMO 1`）は「電源を入れたらすぐ遊べる」ために、**家のWi-Fi(STA)には繋がず、ジョイスティック端子も読みません**（未接続でも誤動作しないよう入力は中立値を返します）。切り替える手順：
+> **家のWi-Fiで使う場合**：`arduino_secrets.h` が無い配布時のままだと、起動のたびに家のWi-Fiへの接続を約12秒試みてから諦め、自動的にArduino自身のアクセスポイント「GameSelect」で起動します。家のWi-Fiに直接つなぎたい場合の手順：
 > 1. `arduino_secrets.h.example` を同じフォルダに `arduino_secrets.h` という名前でコピー
-> 2. 自分の **2.4GHz** Wi-FiのSSID・パスワードを記入
-> 3. `GameSelect.ino` の `PORTABLE_DEMO` を **`0`** に変更して書き込み
-> 4. 起動後、OLEDかシリアルモニタ(9600bps)に出る `192.168.x.x` をブラウザで開く
+> 2. 自分の **2.4GHz** Wi-FiのSSID・パスワードを記入して書き込み
+> 3. 起動後、OLEDかシリアルモニタ(9600bps)に出る `192.168.x.x` をブラウザで開く
+>
+> なお、ジョイスティック端子は未接続でも常に読み取られますが、起動時に中心値を自動でならす仕組み（`calibrateJoystick()`）があるため、繋いでいなくても誤動作しません。
 
 ---
 
@@ -113,9 +114,9 @@ flowchart LR
 
 | 項目 | 値 |
 |------|----|
-| フラッシュ使用率（256KB中） | MazeGame 37% ／ RPG_Quest 82% ／ GameSelect 89% |
-| RAM使用率（32KB中） | 約37% |
-| RPGの配信HTML | 約224KB → **gzip 約118KB** に圧縮して配信 |
+| フラッシュ使用率（256KB中） | MazeGame 37% ／ RPG_Quest 83% ／ GameSelect 91% |
+| RAM使用率（32KB中） | MazeGame 31% ／ RPG_Quest 31% ／ GameSelect 38% |
+| RPGの配信HTML | 約230KB → **gzip 約120KB** に圧縮して配信 |
 | ゲーム規模（RPG） | マップ7・敵12種・仲間3人（最大4人パーティ）・エンディングあり |
 
 ## 共通セットアップ
@@ -136,8 +137,8 @@ flowchart LR
 
 ### 手順（外）
 1. **`GameSelect/GameSelect.ino` を書き込む**。電源はUSBモバイルバッテリーをUSB-Cに挿すだけ。
-2. 初期状態（デモモード）なら**電源を入れるだけで自動的にAPが起動**し、OLEDに `Wi-Fi: GameSelect` ＋ QR が表示される。
-   （`PORTABLE_DEMO 0` で家Wi-Fi運用にしている場合は、ジョイスティックのボタンを押しながらリセットすると即AP）
+2. `arduino_secrets.h` が無い配布時のままなら、電源を入れると約12秒だけ家のWi-Fiを探したあと**自動的にAPが起動**し、OLEDに `Wi-Fi: GameSelect` ＋ QR が表示される。
+   （家のWi-Fiで運用している場合は、ジョイスティックのボタンを押しながらリセットすると即AP）
 3. スマホで **①のQR** を読む → パスワード不要で「GameSelect」に接続。
 4. **②のQR（または `192.168.4.1/?go`）** を読む／開く → **ゲーム選択画面**（迷路 / RPG を選ぶ）。
 

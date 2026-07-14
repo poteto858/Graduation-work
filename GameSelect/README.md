@@ -38,6 +38,8 @@ Arduino が「どのURLが来たか」で配信を変えます（2つの大き�
 | `/maze` | 迷路（`maze_gz.h` … **MazeGame由来**） |
 | `/rpg` | RPG（`webpage_gz.h` … **RPG_Quest由来**） |
 | `/state` `/fx` `/led` `/maps.json` | 共通（迷路は `/state` のみ使用） |
+| `/favicon.ico` | 204で即応答（未知パス扱いで重いページを誤送信しないため） |
+| その他（未知パス） | APモード時は `192.168.4.1/?go` へ302リダイレクト（キャプティブポータル用）／STAモード時はゲーム選択画面にフォールバック |
 
 各ゲームは選択画面から開く独立した画面として動作します。どちらの画面にも「← ゲーム選択」ボタンがあり、選択画面へ戻れます（迷路は操作パネル内、RPGは画面左上に常時表示）。
 
@@ -52,14 +54,14 @@ Arduino が「どのURLが来たか」で配信を変えます（2つの大き�
 ## 操作・配線
 RPG_Quest と同じ（ジョイスティック VRx→A0 / VRy→A1 / SW→D2、パッシブブザー→D9、WS2812→D6、**QR表示用OLED**）。
 
-- **OLED（SSD1306 128×64）**：接続用QRを表示（外で遊ぶ用）。`SDA→SDA / SCL→SCL`（I2C・アドレス0x3C）、`VCC→3.3V`、`GND→GND`。要ライブラリ：**Adafruit SSD1306 / Adafruit GFX / QRCode**。
+- **OLED（SSD1306 128×64）**：接続用QRを表示（外で遊ぶ用）。`SDA→SDA / SCL→SCL`（I2C・アドレス0x3C、個体によっては0x3D）、`VCC→3.3V`、`GND→GND`。要ライブラリ：**Adafruit SSD1306 / Adafruit GFX / QRCode**。
   - AP時：Wi-Fi参加QR（`GameSelect`）を表示／STA時：`http://<IP>/?go` のQRを表示（キャッシュ回避付き）。
 - **キャプティブポータル**：APにつなぐと**自動でゲーム選択画面が開くことが多い**（簡易DNSで全ドメインを 192.168.4.1 に誘導）。端末依存で開かない場合は `192.168.4.1/?go` を開けば確実。
 
 > ハードが無くてもキーボード（WASD/矢印）・スマホ（**仮想十字パッド**／タップ）で全機能が動作します。
 
 ## ビルド
-1. （任意）家のWi-Fiで使う場合のみ `arduino_secrets.h` をこのフォルダに置き（2.4GHz帯）、あわせて `GameSelect.ino` の `#define PORTABLE_DEMO 1` を **`0`** に変更。**無くてもビルドできます**＝初期状態のデモモード（`PORTABLE_DEMO 1`）はAP起動なのでWi-Fi情報が不要。
+1. （任意）家のWi-Fiで使う場合のみ `arduino_secrets.h` をこのフォルダに置く（2.4GHz帯）。**無くてもビルドできます**＝`arduino_secrets.h` が無いと家のWi-Fiへの接続を約12秒試みたあと自動でAP起動するので、Wi-Fi情報が無くても動きます。
 2. ライブラリ **Adafruit NeoPixel** / **Adafruit SSD1306**（依存の Adafruit GFX も）/ **QRCode**（Richard Moore 作）を導入（実機ハード未接続でもコンパイルに必要）。
 3. `GameSelect.ino` ＋ `launcher.h` / `maze_gz.h` / `webpage_gz.h` / `maps.h` を同じフォルダに置いて書き込み。
 4. シリアルモニタ（9600bps）の IP に `http://<IP>/` でアクセス → 選択画面。

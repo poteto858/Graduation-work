@@ -227,6 +227,11 @@ const GOLD_SLIME={ name:"ゴールドブルン", spr:"slime", tint:"#ffd23f", ma
 // 魔王（ラスボス）。専用ドット絵(maoh)＋固有行動
 const MAOH={ name:"魔王", spr:"maoh", maxhp:120, atk:28, def:12, exp:200, gold:300, weak:[], resist:[], big:true, moveChance:0.6,
   moves:[{name:"暗黒波",kind:"all",mult:0.9},{name:"混沌の一撃",kind:"heavy"},{name:"闇の力",kind:"healSelf",power:25}] };
+// クリア後の隠しボス：回想の中で相まみえる、さらに強大な魔王（同じ絵を流用＝データだけ強化）
+// 通常の魔王とは桁違いの本気モード。物理は高HP+高防御でごり押しを許さず、
+// 魔法連発による瞬殺も火・氷耐性で抑える（雷だけは弱点無しの素通し＝対策の糸口として残す）
+const MAOH_TRUE={ name:"真なる魔王", spr:"maoh", maxhp:1500, atk:50, def:30, exp:1500, gold:2000, weak:[], resist:["火","氷"], big:true, moveChance:0.7,
+  moves:[{name:"暗黒波・真",kind:"all",mult:1.1},{name:"混沌の一撃・真",kind:"heavy",mult:2.2},{name:"闇の力・真",kind:"healSelf",power:60}] };
 // 中ボス：ゲヘナ将（洞窟最奥の関門）＋固有行動
 const GEHENA={ name:"ゲヘナ将", spr:"hellgeneral", maxhp:64, atk:23, def:17, exp:85, gold:100, weak:["氷"], resist:["火","雷"], big:true, moveChance:0.55,
   moves:[{name:"地獄の炎",kind:"all",mult:0.8},{name:"雄叫び",kind:"heavy"}] };
@@ -378,7 +383,7 @@ const BATTLE_CMDS=["戦う","特技","呪文","道具","逃げる"];
 let service=null;
 
 // ストーリーフラグ（イベント1回判定など）
-let flags={ mageRescued:false, seraJoined:false, warriorJoined:false, maohDefeated:false, gehenaDefeated:false };
+let flags={ mageRescued:false, seraJoined:false, warriorJoined:false, maohDefeated:false, gehenaDefeated:false, maohRematchDefeated:false };
 
 let keys={};
 
@@ -604,7 +609,7 @@ function startBattle(forced, onWin){
            turnQueue:[], turnIdx:0, actor:null };
   mode="battle"; fx("enc");
   // 戦闘BGMは相手の強さで切り替える：魔王＝専用曲、固有行動を持つ強敵/中ボス＝強敵曲、それ以外＝通常曲
-  playBgm(forced===MAOH ? "battleBoss" : (forced===GEHENA || list.some(e=>e.moves)) ? "battleTough" : "battle");
+  playBgm((forced===MAOH || forced===MAOH_TRUE) ? "battleBoss" : (forced===GEHENA || list.some(e=>e.moves)) ? "battleTough" : "battle");
   const head = multi ? (list[0].name+" の 群れ") : list[0].name;
   queueMsg([head+"が あらわれた！"], startRound);
 }
@@ -957,6 +962,33 @@ function eventMaohBattle(){
         for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; }   // 全員 全回復
         saveGame();                          // クリアデータを 自動セーブ
         loadMap("town", 9, 11);              // はじまりの町へ もどる
+      });
+    });
+  });
+}
+// クリア後の隠しボス：玉座に触れると蘇る"あの日の記憶"の中で、さらに強い魔王と再戦できる（何度でも挑戦可）
+function eventMaohRematch(){
+  confirmChoice(
+    ["玉座に触れた瞬間、脳裏にあの日の記憶が蘇る……","「まだ終わっていない……真の力を、見せてやろう」"],
+    ["戦う","やめる"],
+    [ ()=>{ closeChoice(); maohRematchFight(); },
+      ()=>{ closeChoice(); } ]
+  );
+}
+function maohRematchFight(){
+  showScene([
+    "真なる魔王「小僧、貴様に見せていなかった力がある。",
+    "　回想の中で――もう一度、死合ってやろう！」"
+  ], ()=>{
+    startBattle(MAOH_TRUE, ()=>{
+      flags.maohRematchDefeated=true; saveGame();
+      showScene([
+        "真なる魔王を打ち破った——！",
+        "これは、あの日交わされたはずの、もう一つの結末。",
+        "勇者たちの伝説に、新たな1ページが刻まれた。"
+      ], ()=>{
+        for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; }   // 全員 全回復
+        saveGame();
       });
     });
   });
@@ -1384,6 +1416,7 @@ function update(){
     // 洞窟の救出イベント（一度だけ）
     if((dx||dy) && tile==="E" && !flags.mageRescued){ eventRescueMage(); return; }
     if((dx||dy) && tile==="Z" && !flags.maohDefeated){ eventMaohBattle(); return; }
+    if((dx||dy) && tile==="Z" && flags.maohDefeated){ eventMaohRematch(); return; }
     // 施設のドア：乗った瞬間だけ反応（同じドア上で立ち止まっても再発火しない＝ドアから出られなくなる不具合の修正）
     if((dx||dy)){
       const b=doorAt(ptx,pty);
@@ -1553,7 +1586,17 @@ function drawTile(c,x,y){
   else if(town) drawTownPave(gx,gy,x,y);
   else ctx.drawImage((darkArea?SPR.stone:SPR.grass)[(x+y)&1], gx, gy);
   if(castle && c==="c"){ drawCarpet(gx,gy); return; }
-  if(castle && c==="Z"){ drawCarpet(gx,gy); drawThrone(gx,gy); return; }
+  if(castle && c==="Z"){
+    drawCarpet(gx,gy); drawThrone(gx,gy);
+    if(!flags.maohDefeated){   // 討伐前は玉座に魔王が座っている（討伐後は空の玉座）
+      const im=SPR.maoh;
+      if(im && im.width){
+        const mh=100, mw=Math.round(mh*im.width/im.height);
+        ctx.drawImage(im, gx+TILE/2-mw/2, gy+TILE*0.6-mh, mw, mh);
+      }
+    }
+    return;
+  }
   if(town){
     // f を2×2に並べた大噴水。右下タイル（描画順で最後）で一括描画し、他3タイルは舗装のみ
     if(c==="f"){ if(map[y-1]&&map[y-1][x]==="f"&&map[y][x-1]==="f"){ drawBigFountain(gx-TILE,gy-TILE); } return; }
@@ -1828,14 +1871,17 @@ function winBox(x,y,w,h){
 }
 function drawMenu(items){
   const b=battle; b.rects=[];
-  const x=70, y0=VIEW-160, lh=28, sel=b.state==="command"?b.cmd:b.spell;   // 5項目(にげる)まで枠内に収める
-  ctx.font="26px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
+  const x=70, y0=VIEW-160, sel=b.state==="command"?b.cmd:b.spell;
+  // 技/呪文が増えて5項目を超えたら行の高さ・文字サイズを詰めて枠内に収める
+  const lh = items.length<=5 ? 28 : Math.max(16, Math.floor(115/(items.length-1)));
+  const fontPx = items.length<=5 ? 26 : Math.max(14, Math.round(lh*0.86));
+  ctx.font=fontPx+"px 'Hiragino Kaku Gothic ProN',sans-serif"; ctx.textAlign="left";
   for(let i=0;i<items.length;i++){
     const iy=y0+i*lh;
     if(i===sel){ ctx.fillStyle="#ffd23f"; ctx.fillText("▶", x-34, iy); }
     ctx.fillStyle = i===sel ? "#fff" : "#9aa0b0";
     ctx.fillText(items[i], x, iy);
-    b.rects.push({x:x-40,y:iy-30,w:240,h:36,i});
+    b.rects.push({x:x-40,y:iy-30,w:240,h:Math.min(36,lh),i});
   }
 }
 function drawBattle(){

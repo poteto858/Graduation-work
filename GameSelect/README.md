@@ -31,8 +31,7 @@ https://github.com/user-attachments/assets/cd854839-ded3-4380-9915-2d6cd00a5f8b
 
 ### 実機（Arduino本体）でのプレイ
 
-スマホから実機にWi-Fi接続してプレイしている様子です。内蔵12×8 LEDマトリクスのミニマップや、ブレッドボード上のジョイスティック・WS2812 RGB LED・ブザーの配線も映っています。
-
+スマホから実機にWi-Fi接続してプレイしている様子です。
 #### ゲーム選択
 
 https://github.com/user-attachments/assets/9c39f2c4-c28a-4550-9a65-3b938bf63ec0

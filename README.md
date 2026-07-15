@@ -64,7 +64,7 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 
 ---
 
-## 共通の仕組み（このプロジェクトの肝）
+## 共通の仕組み
 
 ```mermaid
 flowchart TB

@@ -258,25 +258,31 @@ const SHOP_WEAPON=[
   {name:"銅の剣",         atk:6,  price:80,   wtype:"剣",   jobs:["hero"]},
   {name:"鋼の剣",         atk:14, price:350,  wtype:"剣",   jobs:["hero"]},
   {name:"炎の剣",         atk:24, price:1200, wtype:"剣",   jobs:["hero"]},
+  {name:"覇王の剣",       atk:36, price:2200, wtype:"剣",   jobs:["hero"]},
   // 斧（戦士）
   {name:"石の斧",         atk:9,  price:120,  wtype:"斧",   jobs:["warrior"]},
   {name:"バトルアックス", atk:19, price:520,  wtype:"斧",   jobs:["warrior"]},
-  // 杖（魔法使い）
-  {name:"樫の杖",         atk:3,  price:60,   wtype:"杖",   jobs:["mage"]},
-  {name:"魔導の杖",       atk:8,  price:300,  wtype:"杖",   jobs:["mage"]},
+  {name:"深淵の斧",       atk:32, price:1800, wtype:"斧",   jobs:["warrior"]},
+  // 杖（魔法使い）：atkはほぼ使わないが表示用に残し、magで呪文威力を上げる
+  {name:"樫の杖",         atk:3,  mag:4,  price:60,   wtype:"杖", jobs:["mage"]},
+  {name:"魔導の杖",       atk:8,  mag:10, price:300,  wtype:"杖", jobs:["mage"]},
+  {name:"賢者の杖",       atk:14, mag:18, price:1400, wtype:"杖", jobs:["mage"]},
   // メイス（修道女）
-  {name:"聖なるメイス",   atk:5,  price:90,   wtype:"メイス", jobs:["priest"]},
-  {name:"銀のメイス",     atk:12, price:340,  wtype:"メイス", jobs:["priest"]}
+  {name:"聖なるメイス",   atk:5,  mag:3,  price:90,   wtype:"メイス", jobs:["priest"]},
+  {name:"銀のメイス",     atk:12, mag:7,  price:340,  wtype:"メイス", jobs:["priest"]},
+  {name:"大司教のメイス", atk:20, mag:12, price:1400, wtype:"メイス", jobs:["priest"]}
 ];
 const SHOP_ARMOR=[
   // 鎧（勇者・戦士）
   {name:"革の鎧",         def:5,  price:70,   atype:"鎧",   jobs:["hero","warrior"]},
   {name:"鉄の鎧",         def:12, price:300,  atype:"鎧",   jobs:["hero","warrior"]},
   {name:"鋼の鎧",         def:20, price:1000, atype:"鎧",   jobs:["hero","warrior"]},
-  // ローブ（魔法使い・修道女）
-  {name:"布のローブ",     def:3,  price:50,   atype:"ローブ", jobs:["mage","priest"]},
-  {name:"魔力のローブ",   def:8,  price:260,  atype:"ローブ", jobs:["mage","priest"]},
-  {name:"精霊のローブ",   def:14, price:820,  atype:"ローブ", jobs:["mage","priest"]}
+  {name:"竜鱗の鎧",       def:32, price:2200, atype:"鎧",   jobs:["hero","warrior"]},
+  // ローブ（魔法使い・修道女）：defに加えてmagも上げる
+  {name:"布のローブ",     def:3,  mag:2,  price:50,   atype:"ローブ", jobs:["mage","priest"]},
+  {name:"魔力のローブ",   def:8,  mag:6,  price:260,  atype:"ローブ", jobs:["mage","priest"]},
+  {name:"精霊のローブ",   def:14, mag:10, price:820,  atype:"ローブ", jobs:["mage","priest"]},
+  {name:"賢者のローブ",   def:22, mag:16, price:1600, atype:"ローブ", jobs:["mage","priest"]}
 ];
 const SHOP_ITEM=[
   {name:"薬草",       key:"herb",   price:8},
@@ -309,14 +315,19 @@ let statusRects={};   // ステータス画面のBGM音量◀▶のタップ判�
 //   kind: "mag"(攻撃魔法) / "phys"(物理特技) / "heal" / "buffAtk" / "buffDef"
 //   elem: "火" / "氷" / "雷" / "無"
 let party=[{ name:"勇者", role:"hero", job:"勇者", img:"hero", color:"#2e57c8", lv:1, hp:22, maxhp:22, mp:10, maxmp:10,
-             atk:12, def:7, exp:0, down:false, weapon:null, armor:null,
+             atk:12, def:7, mag:6, exp:0, down:false, weapon:null, armor:null,
              skills:[{name:"薙ぎ払い",mp:0,kind:"phys",mult:1.3,elem:"無"}],
              spells:[{name:"火炎",mp:3,kind:"mag",power:12,elem:"火"},{name:"癒し",mp:4,kind:"heal",power:20}],
              gold:0, herb:3, elixir:0, buffAtkT:0, buffDefT:0 }];
 let stats=party[0];
 const HERO_KIT={ skills: party[0].skills.slice(), spells: party[0].spells.slice() };   // 勇者の初期の特技/呪文スナップショット（セーブ復元の土台）
+// 役割ごとの魔力成長（レベルアップ毎に加算。物理職は0でOK）
+const MAG_GROWTH={ hero:1, mage:3, warrior:0, priest:2 };
+const MAG_BASE={ hero:6, mage:16, warrior:0, priest:8 };     // 加入時Lvでの基礎魔力（旧セーブ補完にも使う）
+const MAG_BASE_LV={ hero:1, mage:3, warrior:3, priest:3 };   // ↑が対応する加入時Lv
 function atkOf(m){ let a=m.atk+(m.weapon?m.weapon.atk:0); if(m.buffAtkT>0)a=Math.floor(a*1.4); return a; }
 function defOf(m){ let d=m.def+(m.armor?m.armor.def:0); if(m.buffDefT>0)d=Math.floor(d*1.5); return d; }
+function magOf(m){ return (m.mag||0)+(m.weapon&&m.weapon.mag?m.weapon.mag:0)+(m.armor&&m.armor.mag?m.armor.mag:0); }
 function aliveMembers(){ return party.filter(m=>!m.down); }
 function recruit(m){ party.push(m); }
 // 属性倍率（弱点1.5倍 / 耐性0.5倍）
@@ -330,20 +341,20 @@ function elemMult(elem,e){
 // 仲間テンプレート
 function makeMage(){   // 魔法使い：攻撃魔法（火・氷）
   return { name:"マリン", role:"mage", job:"魔法使い", img:"mage", color:"#8a4fc0", lv:3, hp:18, maxhp:18, mp:24, maxmp:24,
-           atk:8, def:5, exp:0, down:false, buffAtkT:0, buffDefT:0, weapon:null, armor:null, skills:[],
+           atk:8, def:5, mag:16, exp:0, down:false, buffAtkT:0, buffDefT:0, weapon:null, armor:null, skills:[],
            spells:[{name:"火炎",mp:4,kind:"mag",power:18,elem:"火"},
                    {name:"氷",mp:5,kind:"mag",power:20,elem:"氷"},
                    {name:"癒し",mp:5,kind:"heal",power:18}] };
 }
 function makeWarrior(){ // 戦士：物理特技
   return { name:"ガルド", role:"warrior", job:"戦士", img:"warrior", color:"#a05a2a", lv:3, hp:30, maxhp:30, mp:4, maxmp:4,
-           atk:16, def:9, exp:0, down:false, buffAtkT:0, buffDefT:0, weapon:null, armor:null, spells:[],
+           atk:16, def:9, mag:0, exp:0, down:false, buffAtkT:0, buffDefT:0, weapon:null, armor:null, spells:[],
            skills:[{name:"大斬り",mp:0,kind:"phys",mult:1.8,elem:"無"},
                    {name:"乱れ打ち",mp:0,kind:"phys",mult:1.2,elem:"無"}] };
 }
 function makePriest(){  // 修道女（シスター）：回復・補助
   return { name:"セラ", role:"priest", job:"修道女", img:"sister", color:"#c8b86a", lv:3, hp:22, maxhp:22, mp:22, maxmp:22,
-           atk:9, def:7, exp:0, down:false, buffAtkT:0, buffDefT:0, weapon:null, armor:null, skills:[],
+           atk:9, def:7, mag:8, exp:0, down:false, buffAtkT:0, buffDefT:0, weapon:null, armor:null, skills:[],
            spells:[{name:"癒し",mp:4,kind:"heal",power:24},
                    {name:"守りの歌",mp:5,kind:"buffDef"},
                    {name:"力の歌",mp:5,kind:"buffAtk"}] };
@@ -603,11 +614,20 @@ function pickGroup(){                                              // 同種を 
   let n=1; for(let i=1;i<maxg && i<3;i++){ if(Math.random()<0.55) n++; }
   const arr=[]; for(let i=0;i<n;i++) arr.push(e); return arr;
 }
+// ランダムエンカウントの敵は勇者レベルに応じて強化する（固定ボス戦(forced)は据え置き＝調整済みの数値のまま）。
+// レベル1を基準に1レベルごとに+10%（HP/攻/防/経験値/ゴールドすべて同倍率）。伸ばしすぎると逆転するので要調整。
+function mobScaleMul(){ return 1 + Math.max(0, stats.lv-1)*0.10; }
+function scaleMob(e, mul){
+  return { ...e, maxhp:Math.round(e.maxhp*mul), atk:Math.round(e.atk*mul), def:Math.round(e.def*mul),
+           exp:Math.round(e.exp*mul), gold:Math.round(e.gold*mul) };
+}
 function startBattle(forced, onWin){
   const list = forced ? [forced] : pickGroup();
+  const mul = forced ? 1 : mobScaleMul();
   const multi = list.length>1;
-  const enemies = list.map((e,i)=>({ ...e, hp:e.maxhp, _ph:i*1.3,
-                     name: multi ? e.name+" "+String.fromCharCode(65+i) : e.name }));   // 複数は A/B/C
+  const enemies = list.map((e,i)=>{ const s = forced ? e : scaleMob(e, mul);
+                     return { ...s, hp:s.maxhp, _ph:i*1.3,
+                              name: multi ? s.name+" "+String.fromCharCode(65+i) : s.name }; });   // 複数は A/B/C
   battle={ enemies, state:"msg", msg:[], msgIdx:0, shown:0,
            after:null, cmd:0, spell:0, shake:0, shakeP:0, flash:0, rects:null, onWin:onWin||null, noFlee:!!onWin,
            turnQueue:[], turnIdx:0, actor:null };
@@ -697,7 +717,7 @@ function castAction(m,a){
     const wk=elemMult(a.elem,e);
     const d = a.kind==="phys"
       ? Math.max(1, Math.floor(calcDmg(Math.floor(atkOf(m)*a.mult), e.def)*wk))
-      : Math.max(1, Math.floor((a.power+m.lv*2)*wk*(0.85+Math.random()*0.3)));
+      : Math.max(1, Math.floor((a.power+magOf(m))*wk*(0.85+Math.random()*0.3)));
     e.hp-=d; if(a.kind==="mag")b.flash=10; b.shake=12; fx("hit");
     const tag = wk>1?" 弱点！" : (wk<1?" 効いていない…":"");
     const fell = e.hp<=0?[e.name+"を 倒した！"]:[];
@@ -706,7 +726,7 @@ function castAction(m,a){
     b.flash=10; b.shake=8; fx("hit");
     const lines=[m.name+"は "+a.name+"を 唱えた！"], dead=[];
     for(const e of foes()){ const wk=elemMult(a.elem,e);
-      const d=Math.max(1, Math.floor((a.power+m.lv*2)*wk*(0.85+Math.random()*0.3))); e.hp-=d;
+      const d=Math.max(1, Math.floor((a.power+magOf(m))*wk*(0.85+Math.random()*0.3))); e.hp-=d;
       lines.push(e.name+"に "+d+"！"); if(e.hp<=0) dead.push(e.name+"を 倒した！"); }
     queueMsg([...lines, ...dead], afterActorAction);
   }else if(a.kind==="heal"){                       // 単体回復（最も傷ついた味方）
@@ -807,7 +827,7 @@ function gainExp(ex){
     m.exp=(m.exp||0)+ex;
     while(m.exp>=needExp(m.lv)){
       m.exp-=needExp(m.lv); m.lv++;
-      m.maxhp+=6; m.maxmp+=3; m.atk+=2; m.def+=1; m.hp=m.maxhp; m.mp=m.maxmp;
+      m.maxhp+=6; m.maxmp+=3; m.atk+=2; m.def+=1; m.mag=(m.mag||0)+(MAG_GROWTH[m.role]||0); m.hp=m.maxhp; m.mp=m.maxmp;
       msgs.push(m.name+"は レベル"+m.lv+"に 上がった！");
       const learned=learnAt(m);
       if(learned) msgs.push(m.name+"は "+learned+"を 覚えた！");
@@ -1002,12 +1022,22 @@ function maohRematchFight(){
     "　回想の中で――もう一度、死合ってやろう！」"
   ], ()=>{
     startBattle(MAOH_TRUE, ()=>{
+      const firstClear = !flags.maohRematchDefeated;   // 初回撃破だけ真エンディングを見せる（分岐演出）
       flags.maohRematchDefeated=true; saveGame();
-      showScene([
+      const allies=party.slice(1).map(m=>m.name);
+      const lines = firstClear ? [
         "真なる魔王を打ち破った——！",
-        "これは、あの日交わされたはずの、もう一つの結末。",
-        "勇者たちの伝説に、新たな1ページが刻まれた。"
-      ], ()=>{
+        "回想の奥に眠っていた、最後の闇が消えていく。",
+        allies.length ? ("勇者は "+allies.join("、")+" と、誰も知らないこの戦いを分かち合った。")
+                      : "勇者は、誰も知らないこの戦いを一人で終えた。",
+        "表向きの歴史には残らない、もう一つの結末。",
+        "けれど確かに、世界はここで救われていた。",
+        "ー まことのおわり ー"
+      ] : [
+        "真なる魔王を打ち破った——！",
+        "その力は、もはや勇者たちの敵ではない。"
+      ];
+      showScene(lines, ()=>{
         for(const m of party){ m.down=false; m.hp=m.maxhp; m.mp=m.maxmp; }   // 全員 全回復
         saveGame();
       });
@@ -1073,7 +1103,9 @@ function openWeaponShop(){
     .filter(it=> party.some(m=> it.jobs.indexOf(m.role)>=0))
     .sort((a,b)=>a.price-b.price);
   const labels=all.map(it=>{
-    const tag=it.wtype||it.atype, val=(it.atk!==undefined?"攻+"+it.atk:"守+"+it.def);
+    const tag=it.wtype||it.atype;
+    let val=(it.atk!==undefined?"攻+"+it.atk:"守+"+it.def);
+    if(it.mag) val+=" 魔+"+it.mag;
     return { t:"【"+tag+"】"+it.name+"  "+val, p:it.price+"G" };   // 左:名前+増加値 / 右:値段（離して表示）
   });
   labels.push("やめる");
@@ -1119,7 +1151,8 @@ function loadGame(){
       // 旧セーブ互換：欠落フィールドを補完
       for(const m of party){ if(m.buffAtkT===undefined)m.buffAtkT=0; if(m.buffDefT===undefined)m.buffDefT=0;
                              rebuildKit(m);   // 特技/呪文は役割＋現Lvから再構成（習得分を保持・旧セーブも自己修復）
-                             if(!m.img)m.img=({hero:"hero",mage:"mage",warrior:"warrior",priest:"sister"})[m.role]||"hero"; }  // 画像キー補完(img導入前のセーブ対策)
+                             if(!m.img)m.img=({hero:"hero",mage:"mage",warrior:"warrior",priest:"sister"})[m.role]||"hero";  // 画像キー補完(img導入前のセーブ対策)
+                             if(m.mag===undefined) m.mag=(MAG_BASE[m.role]||0)+Math.max(0,m.lv-(MAG_BASE_LV[m.role]||1))*(MAG_GROWTH[m.role]||0); }  // 魔力導入前のセーブ補完（現Lvぶん成長させた値を復元）
       if(stats.gold===undefined)stats.gold=0; if(stats.herb===undefined)stats.herb=0; if(stats.elixir===undefined)stats.elixir=0;
       if(s.respawn) respawn=(MAPS[s.respawn.map]?s.respawn:{map:"town",tx:9,ty:11});  if(s.flags) Object.assign(flags, s.flags);
       // 不整合セーブの自己修復：加入フラグが立っているのに仲間が居なければ入れ直す（過去版の名残対策）
@@ -2058,7 +2091,7 @@ function drawStatus(){
     ctx.font="22px monospace"; ctx.fillStyle="#fff";
     ctx.fillText("HP "+m.hp+"/"+m.maxhp+"   MP "+m.mp+"/"+m.maxmp, lx+16, ly); ly+=28;
     ctx.fillStyle="#9fb0d0";
-    ctx.fillText("攻撃力 "+atkOf(m)+"   守備力 "+defOf(m), lx+16, ly); ly+=28;
+    ctx.fillText("攻撃力 "+atkOf(m)+"   守備力 "+defOf(m)+"   魔力 "+magOf(m), lx+16, ly); ly+=28;
     ctx.fillStyle="#bda0e0";
     ctx.fillText("武器:"+(m.weapon?m.weapon.name:"なし")+"  鎧:"+(m.armor?m.armor.name:"なし"), lx+16, ly); ly+=32;
   }

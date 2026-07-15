@@ -6,8 +6,8 @@ Arduino UNO R4 WiFi を Web サーバーにして、PC・スマホのブラウ�
 
 | フォルダ | 中身 | 説明 |
 |----------|------|------|
-| [`MazeGame/`](MazeGame/) | **迷路ゲーム** | ミニゲーム集にしようとして最初に作った迷路ゲーム（完成） |
-| [`RPG_Quest/`](RPG_Quest/) | **RPG_Quest** | 迷路の仕組みを土台に発展させたドラクエ風RPG（メイン作品） |
+| [`MazeGame/`](MazeGame/) | **迷路ゲーム** | ミニゲーム集にしようとして最初に作った迷路ゲーム |
+| [`RPG_Quest/`](RPG_Quest/) | **RPG_Quest** | 迷路の仕組みを土台に発展させたドラクエ風RPG |
 | [`GameSelect/`](GameSelect/) | **統合（ランチャー）** | 起動時に迷路 / RPG を選んで遊べる統合スケッチ |
 
 > 各ゲームの**中身は `MazeGame/` と `RPG_Quest/` で開発**し、`GameSelect/` はその生成物を集めて配信します（更新の置き場所を分離）。

@@ -46,5 +46,4 @@ Arduino UNO R4 WiFi を **Webサーバー**にして、PC・スマホのブラ�
 3. `MazeGame.ino` ＋ `maze_gz.h` を同じフォルダに置いて Arduino IDE で書き込み。
 4. シリアルモニタ（9600bps）に表示される IP に `http://<IP>/`（httpsではなくhttp）でアクセス。
 
-> ゲーム本体は `maze.html`。編集したら `_gzip_maze.py`（開発用ローカルスクリプト・リポジトリ未同梱）で `maze_gz.h` を作り直してください（Arduino は gzip 圧縮のまま配信＝省メモリ）。
 > 家のWi-Fiが見つからない場合は自動でAP「MazeGame」が起動します（`arduino_secrets.h` 無しでもビルド可）。外で遊ぶ方法はリポジトリ直下の README を参照。
